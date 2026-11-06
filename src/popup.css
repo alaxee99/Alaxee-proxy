@@ -436,7 +436,7 @@ html.full-page .field-scheme { grid-column: auto; }
 html.full-page .field input,
 html.full-page .field select { min-height: 44px; font-size: 13px; }
 html.full-page .rules-panel { padding: 20px; }
-html.full-page .rule-list { max-height: none; }
+html.full-page #rulesList { max-height: none; }
 
 @media (max-width: 760px) {
   html.full-page .app-shell { padding: 18px 14px 28px; }
