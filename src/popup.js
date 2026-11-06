@@ -7,6 +7,7 @@ import {
   inferActiveMode,
   isHostWhitelisted,
   normalizeWhitelist,
+  resolveTabRoute,
   validateProxySettings
 } from "./core.js";
 
@@ -33,11 +34,14 @@ const ui = {
   notice: $("notice"),
   openSettings: $("openSettingsButton"),
   statusPermissionButton: $("statusPermissionButton"),
-  statusPermissionHint: $("statusPermissionHint")
+  statusPermissionHint: $("statusPermissionHint"),
+  brandMark: $("brandMark")
 };
 
 let settings = { ...DEFAULT_SETTINGS, whitelist: [] };
 let currentHostname = null;
+let currentTabUrl = "";
+let proxyStateSnapshot = null;
 let activeMode = "clash";
 let noticeTimer = null;
 
@@ -93,7 +97,8 @@ async function inspectCurrentPage() {
   let tab = null;
   try {
     tab = await getCurrentTab();
-    currentHostname = getPageHostname(tab?.url ?? "");
+    currentTabUrl = tab?.url ?? "";
+    currentHostname = getPageHostname(currentTabUrl);
   } catch {
     currentHostname = null;
   }
@@ -102,38 +107,58 @@ async function inspectCurrentPage() {
 }
 
 function renderCurrentPage() {
+  const route = resolveTabRoute(currentTabUrl, proxyStateSnapshot, settings);
+  const whitelisted = isHostWhitelisted(currentHostname, settings.whitelist);
+  const whitelistBypass = proxyStateSnapshot?.value?.mode === "fixed_servers" && whitelisted;
+  const routeLabels = {
+    clash: "交给 Clash",
+    direct: "浏览器直连",
+    system: "系统代理",
+    unknown: "状态未知"
+  };
+  const routeMessages = {
+    clash: "此网站未命中直连白名单，浏览器请求会交给本机 Clash 处理。",
+    direct: whitelistBypass
+      ? "此网站命中直连白名单，浏览器请求会绕过浏览器代理。"
+      : "当前浏览器处于全局直连模式，所有网站都会直接连接。",
+    system: "此网站跟随 Windows 系统代理设置。",
+    unknown: "无法确认此网站的浏览器代理路由；可能由其他扩展或管理策略接管。"
+  };
+  const routeClasses = {
+    clash: "route-proxy",
+    direct: "route-good",
+    system: "route-system",
+    unknown: "route-unknown"
+  };
+
+  ui.brandMark.dataset.route = route;
+  ui.brandMark.setAttribute("aria-label", `当前页面状态：${routeLabels[route]}`);
+  ui.routePill.textContent = routeLabels[route];
+  ui.routePill.className = `route-pill ${routeClasses[route]}`;
+
   if (!currentHostname) {
     ui.currentHost.textContent = "当前页面不可用";
-    ui.currentRoute.textContent = "请打开普通 HTTP 或 HTTPS 网站后再使用白名单。";
-    ui.routePill.textContent = "不支持此页面";
-    ui.routePill.className = "route-pill route-unknown";
+    ui.currentRoute.textContent = "请打开普通 HTTP 或 HTTPS 网站后再查看网页路由。";
     ui.addCurrent.disabled = true;
     ui.removeCurrent.hidden = true;
     ui.includeSubdomains.disabled = true;
+    ui.siteHint.textContent = "浏览器内部页面不属于普通网站，无法加入直连白名单。";
     return;
   }
 
-  const whitelisted = isHostWhitelisted(currentHostname, settings.whitelist);
   ui.currentHost.textContent = currentHostname;
-  ui.currentRoute.textContent = whitelisted
-    ? "此网站已绕过浏览器代理，直接连接。"
-    : activeMode === "clash"
-      ? "此网站将交给 Clash 按现有规则处理。"
-      : activeMode === "direct"
-        ? "当前 Edge 处于全局直连模式。"
-        : activeMode === "system"
-          ? "当前 Edge 跟随 Windows 系统代理设置。"
-          : "当前代理设置由其他来源管理，或尚未识别。";
-  ui.routePill.textContent = whitelisted ? "直连白名单" : activeMode === "clash" ? "交给 Clash" : activeMode === "direct" ? "全局直连" : "系统代理";
-  ui.routePill.className = `route-pill ${whitelisted ? "route-good" : "route-proxy"}`;
+  ui.currentRoute.textContent = routeMessages[route];
   ui.addCurrent.disabled = whitelisted;
   ui.removeCurrent.hidden = !whitelisted;
   ui.includeSubdomains.disabled = whitelisted;
   ui.siteHint.textContent = whitelisted
-    ? "移除白名单后，该网站会重新交给当前代理模式处理。"
-    : "添加后会立即绕过浏览器代理；Clash 自己的规则不会被修改。";
+    ? whitelistBypass
+      ? "此域名命中浏览器直连白名单；不会交给 Clash 的普通代理规则处理。"
+      : "此域名已保存为白名单，但当前是全局直连或系统代理模式，实际路由并不依赖这条白名单。"
+    : route === "clash"
+      ? "添加后会绕过浏览器代理；未添加的网站仍交给 Clash 按现有规则处理。"
+      : "白名单只影响浏览器处于 Clash 代理模式时的浏览器级绕过规则。";
 }
-
 function renderModes() {
   document.querySelectorAll("[data-mode]").forEach((button) => {
     button.setAttribute("aria-pressed", String(button.dataset.mode === activeMode));
@@ -184,6 +209,7 @@ function renderWhitelist() {
 async function readProxyState() {
   try {
     const result = await chromeCall(chrome.proxy.settings, "get", { incognito: false });
+    proxyStateSnapshot = result;
     const level = result?.levelOfControl ?? "unknown";
     const current = result?.value ?? {};
     const label = describeProxyMode(current, settings);
@@ -235,7 +261,7 @@ async function applyMode(mode, overrides = {}) {
   await readProxyState();
 }
 
-async function addCurrentToWhitelist() {
+async function addCurrentToWhitelist(options = {}) {
   if (!currentHostname) return;
   try {
     const entry = createWhitelistEntry(currentHostname, ui.includeSubdomains.checked);
@@ -247,7 +273,11 @@ async function addCurrentToWhitelist() {
       // Persist the list now; it will be included whenever Clash mode is enabled.
       renderWhitelist();
     }
-    sendNotice(`${entry.host} 已加入直连白名单。`, "success");
+    if (options.tabsPermissionGranted === false) {
+      sendNotice(`${entry.host} 已加入直连白名单；但逐网页图标权限未开启，工具栏暂时只能显示全局模式。可点击上方“启用逐网页显示”开启。`, "warning");
+    } else {
+      sendNotice(`${entry.host} 已加入直连白名单，当前网页图标将显示为浏览器直连。`, "success");
+    }
   } catch (error) {
     sendNotice(`添加失败：${error.message}`, "error");
   }
@@ -293,11 +323,11 @@ async function connectClash() {
 
 function renderStatusPermission() {
   chrome.permissions.contains({ permissions: ["tabs"] }, (granted) => {
-    ui.statusPermissionButton.textContent = granted ? "已启用 · 刷新" : "启用";
+    ui.statusPermissionButton.textContent = granted ? "已启用 · 刷新" : "启用逐网页显示";
     ui.statusPermissionButton.setAttribute("aria-pressed", String(granted));
     ui.statusPermissionHint.textContent = granted
-      ? "已允许本地读取标签页网址；图标会逐标签页显示代理路线，不读取网页内容。"
-      : "启用后按每个网页的白名单状态更新工具栏图标。只读取标签页网址，不读取网页内容，也不会上传数据。";
+      ? "逐网页状态已启用：白名单网页显示直连，其他网页按当前代理模式显示；仅本地读取网址。"
+      : "要让图标真正区分当前网页是否命中白名单，需要允许本地读取标签页网址；不会读取网页内容或上传浏览数据。";
   });
 }
 
@@ -344,7 +374,17 @@ async function initialize() {
 
   ui.saveConnect.addEventListener("click", connectClash);
   ui.openSettings.addEventListener("click", () => chrome.runtime.openOptionsPage());
-  ui.addCurrent.addEventListener("click", addCurrentToWhitelist);
+  ui.addCurrent.addEventListener("click", () => {
+    // Request the optional tabs permission directly from the user gesture.
+    // Adding a whitelist entry remains available even when permission is denied.
+    chrome.permissions.request({ permissions: ["tabs"] }, (granted) => {
+      if (chrome.runtime.lastError) {
+        void addCurrentToWhitelist({ tabsPermissionGranted: false });
+        return;
+      }
+      void addCurrentToWhitelist({ tabsPermissionGranted: granted });
+    });
+  });
   ui.removeCurrent.addEventListener("click", () => currentHostname && removeWhitelistEntry(currentHostname));
   ui.clearList.addEventListener("click", clearWhitelist);
   ui.includeSubdomains.addEventListener("change", async () => {

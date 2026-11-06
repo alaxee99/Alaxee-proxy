@@ -16,7 +16,7 @@ const ICON_TITLES = Object.freeze({
   clash: "Alaxee Proxy · 此网页交由 Clash 处理",
   direct: "Alaxee Proxy · 此网页浏览器直连",
   system: "Alaxee Proxy · 此网页跟随系统代理",
-  unknown: "Alaxee Proxy · 代理状态未知或由其他程序控制"
+  unknown: "Alaxee Proxy · 当前网页状态未知，或代理设置由其他程序控制"
 });
 
 const ICON_IMAGE_CACHE = new Map();
@@ -60,13 +60,13 @@ function drawStateIcon(route, size) {
     context.quadraticCurveTo(7.3, 32.7, 7.7, 29.5);
     context.closePath();
     context.strokeStyle = orbitGradient;
-    context.lineWidth = 3;
+    context.lineWidth = 3.65;
     context.stroke();
 
     const nodes = [
-      { x: 8.6, y: 29.7, r: 3, fill: "#B9B2FF" },
-      { x: 23.9, y: 41.1, r: 3, fill: "#E8B6D9" },
-      { x: 40.1, y: 18.2, r: 3.15, fill: "#8AE8FF" }
+      { x: 8.6, y: 29.7, r: 3.35, fill: "#B9B2FF" },
+      { x: 23.9, y: 41.1, r: 3.35, fill: "#E8B6D9" },
+      { x: 40.1, y: 18.2, r: 3.45, fill: "#8AE8FF" }
     ];
     for (const node of nodes) {
       context.beginPath();
@@ -86,7 +86,7 @@ function drawStateIcon(route, size) {
     context.bezierCurveTo(14.7, 41.6, 25.8, 39.1, 31.1, 26);
     context.bezierCurveTo(35.5, 15.3, 39.1, 10.5, 44.3, 5.9);
     context.strokeStyle = flowGradient;
-    context.lineWidth = 3.5;
+    context.lineWidth = 4.2;
     context.stroke();
 
     context.beginPath();
@@ -94,7 +94,7 @@ function drawStateIcon(route, size) {
     context.lineTo(44.1, 5.9);
     context.lineTo(43.9, 13.2);
     context.strokeStyle = "#8AE8FF";
-    context.lineWidth = 3.1;
+    context.lineWidth = 3.8;
     context.stroke();
 
     context.beginPath();
@@ -113,7 +113,7 @@ function drawStateIcon(route, size) {
     context.bezierCurveTo(18, 42, 6, 41, 6, 24);
     context.closePath();
     context.strokeStyle = orbitGradient;
-    context.lineWidth = 2.8;
+    context.lineWidth = 3.5;
     context.stroke();
 
     for (const node of [
@@ -186,7 +186,7 @@ function drawStateIcon(route, size) {
   context.moveTo(35, 12.5);
   context.lineTo(13, 35.5);
   context.strokeStyle = xeeGradient;
-  context.lineWidth = 4.25;
+  context.lineWidth = 5.1;
   context.stroke();
 
   // The original upper-right star flare and left glint complete the logo family.
@@ -281,19 +281,21 @@ async function hasTabsPermission() {
 
 async function refreshAllTabs() {
   const runtime = await readContext();
-  const globalRoute = resolveGlobalRoute(runtime.proxyState, runtime.settings);
-  await setActionState(globalRoute);
-
   const hasPermission = await hasTabsPermission();
   const tabs = await chromeCall(chrome.tabs, "query", {});
+
   if (!hasPermission) {
-    // Clear any previous per-tab overrides when the optional permission is revoked.
+    // Never present the global mode as though it were the active page's route.
+    // Unknown is the only truthful per-page state until URL access is granted.
+    await setActionState("unknown");
     await Promise.all((tabs ?? [])
       .filter((tab) => Number.isInteger(tab.id))
-      .map((tab) => setActionState(globalRoute, tab.id)));
+      .map((tab) => setActionState("unknown", tab.id)));
     return;
   }
 
+  const globalRoute = resolveGlobalRoute(runtime.proxyState, runtime.settings);
+  await setActionState(globalRoute);
   await Promise.all((tabs ?? [])
     .filter((tab) => Number.isInteger(tab.id))
     .map((tab) => {
