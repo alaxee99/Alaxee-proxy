@@ -214,3 +214,152 @@ h1, h2 { margin: 0; font-size: 14px; font-weight: 740; letter-spacing: .1px; }
 .status-permission-button:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(8, 127, 115, .12); }
 .status-permission-button:active { transform: scale(.97); }
 .status-permission-button[aria-pressed="true"] { color: var(--accent-strong); background: var(--accent-soft); }
+
+.view-nav {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5px;
+  padding: 4px;
+  margin: -4px 0 11px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface-soft);
+}
+.view-nav-button {
+  min-height: 31px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 720;
+  transition: background .16s ease, color .16s ease, box-shadow .16s ease;
+}
+.view-nav-button[aria-current="page"] {
+  color: var(--ink);
+  background: var(--surface);
+  box-shadow: 0 2px 7px rgba(30, 45, 48, .1);
+}
+.nav-count {
+  display: inline-grid;
+  min-width: 16px;
+  height: 16px;
+  margin-left: 3px;
+  place-items: center;
+  border-radius: 99px;
+  padding: 0 4px;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+.popup-view { min-width: 0; }
+.popup-view[hidden] { display: none !important; }
+.route-system { color: #8970c8; background: color-mix(in srgb, #9b87e8 14%, var(--surface-soft)); }
+
+.rules-panel {
+  min-width: 0;
+  padding: 14px;
+  margin-bottom: 10px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+.rule-tabs {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin: 0 0 9px;
+}
+.rule-tab {
+  min-height: 35px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface-soft);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 730;
+  transition: border-color .16s ease, background .16s ease, color .16s ease;
+}
+.rule-tab[aria-pressed="true"] {
+  border-color: color-mix(in srgb, var(--accent) 50%, var(--line));
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+}
+.rule-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 8px;
+  margin-top: 11px;
+}
+.rule-form .field { min-width: 0; }
+.rule-form .field input {
+  width: 100%;
+  min-width: 0;
+  height: 35px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+  color: var(--ink);
+  font-size: 11px;
+}
+.rule-form .field input:focus {
+  border-color: var(--accent);
+  outline: none;
+}
+.rule-form .secondary-button {
+  min-height: 35px;
+  white-space: nowrap;
+}
+.rule-subdomain-row { margin: 10px 0 13px; }
+.rule-list-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 760;
+}
+.rule-detail { min-width: 0; flex: 1; }
+.rule-type-label {
+  display: inline-flex;
+  align-items: center;
+  margin-top: 5px;
+  padding: 3px 6px;
+  border-radius: 5px;
+  font-size: 8px;
+  font-weight: 760;
+}
+.rule-type-direct { color: var(--accent-strong); background: var(--accent-soft); }
+.rule-type-proxy { color: #a16e2b; background: #f5eddc; }
+.force-proxy-button {
+  color: #a16e2b;
+  background: #f5eddc;
+  border-color: color-mix(in srgb, #c38a3e 36%, var(--line));
+}
+.force-proxy-button:hover { border-color: #c38a3e; }
+.rules-footnote {
+  margin: 12px 1px 0;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.5;
+}
+.notice.notice-warning {
+  border-color: color-mix(in srgb, #c38a3e 40%, var(--line));
+  color: #a16e2b;
+}
+@media (prefers-color-scheme: dark) {
+  .rule-type-proxy, .force-proxy-button {
+    color: #efc27f;
+    background: rgba(166, 117, 48, .18);
+    border-color: rgba(204, 157, 89, .32);
+  }
+  .notice.notice-warning { color: #efc27f; }
+}
