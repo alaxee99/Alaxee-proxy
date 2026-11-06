@@ -100,6 +100,6 @@ test("per-tab status service worker and optional permission are declared", async
 
 test("all four XEE toolbar state icons are included in the package", () => {
   for (const state of ["clash", "direct", "system", "unknown"]) {
-    assertLocalFile(`icons/status/${state}32.png`, `${state} toolbar icon`);
+    for (const size of [16, 32]) assertLocalFile(`icons/status/${state}${size}.png`, `${state} toolbar icon`);
   }
 });
