@@ -140,7 +140,8 @@ test("popup includes overview and separate domain-rule submenus", async () => {
   assert.ok(html.includes('id="blacklistTab"'));
   assert.ok(html.includes('id="ruleHostInput"'));
   assert.ok(script.includes('switchRuleType("whitelist")'));
-  assert.ok(script.includes('addDomainRule("blacklist"'));
+  assert.ok(script.includes("addDomainRule(activeRuleType, host, ui.ruleIncludeSubdomains.checked)"));
+  assert.ok(script.includes('activeRuleType = type === "blacklist" ? "blacklist" : "whitelist"'));
 });
 
 test("popup uses exact per-page route resolver for the current page status", async () => {
