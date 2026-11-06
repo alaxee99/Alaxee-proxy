@@ -108,17 +108,17 @@ test("popup brand mark follows the active page route with four distinct XEE silh
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
   assert.match(html, /id="brandMark"/);
   for (const route of ["clash", "direct", "system", "unknown"]) {
-    assert.match(html, new RegExp(`route-shape route-${route}`));
-    assert.match(css, new RegExp(`data-route="\\${route}"`));
+    assert.ok(html.includes(`route-shape route-${route}`));
+    assert.ok(css.includes(`data-route="${route}"`));
   }
-  assert.match(script, /resolveTabRoute\(currentTabUrl, proxyStateSnapshot, settings\)/);
-  assert.match(css, /prefers-reduced-motion:\\s*reduce/);
+  assert.ok(script.includes("resolveTabRoute(currentTabUrl, proxyStateSnapshot, settings)"));
+  assert.ok(css.includes("prefers-reduced-motion: reduce"));
 });
 
 test("adding a whitelist entry requests optional per-tab URL permission", async () => {
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
-  assert.match(script, /ui\\.addCurrent\\.addEventListener\\("click", \\(\\) => \\{/);
-  assert.match(script, /chrome\\.permissions\\.request\\(\\{ permissions: \\[\\"tabs\\"\\] \\}/);
-  assert.match(script, /tabsPermissionGranted === false/);
-  assert.match(script, /启用逐网页显示/);
+  assert.ok(script.includes('ui.addCurrent.addEventListener("click", () => {'));
+  assert.ok(script.includes('chrome.permissions.request({ permissions: ["tabs"] }'));
+  assert.ok(script.includes("tabsPermissionGranted === false"));
+  assert.ok(script.includes("启用逐网页显示"));
 });
