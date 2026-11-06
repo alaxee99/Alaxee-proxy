@@ -115,9 +115,11 @@ test("popup brand mark follows the active page route with four distinct XEE silh
   assert.ok(css.includes("prefers-reduced-motion: reduce"));
 });
 
-test("adding a whitelist entry requests optional per-tab URL permission", async () => {
+test("adding current-page or manual domain rules requests optional per-tab URL permission", async () => {
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
-  assert.ok(script.includes('ui.addCurrent.addEventListener("click", () => {'));
+  assert.ok(script.includes('ui.addCurrentDirect.addEventListener("click", () => {'));
+  assert.ok(script.includes('ui.addCurrentProxy.addEventListener("click", () => {'));
+  assert.ok(script.includes('ui.ruleForm.addEventListener("submit", (event) => {'));
   assert.ok(script.includes('chrome.permissions.request({ permissions: ["tabs"] }'));
   assert.ok(script.includes("tabsPermissionGranted === false"));
   assert.ok(script.includes("启用逐网页显示"));
