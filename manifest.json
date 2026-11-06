@@ -3,7 +3,7 @@
   "name": "Alaxee Proxy",
   "short_name": "Alaxee Proxy",
   "version": "0.1.2",
-  "description": "A lightweight Edge proxy switcher for local Clash/Mihomo, with a per-domain direct bypass list.",
+  "description": "A lightweight Edge proxy controller with direct whitelist and force-proxy domain rules.",
   "permissions": [
     "proxy",
     "storage",

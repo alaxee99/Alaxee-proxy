@@ -1,8 +1,8 @@
-import { DEFAULT_SETTINGS, buildChromeProxyConfig, normalizeWhitelist, validateProxySettings } from "./src/core.js";
+import { DEFAULT_SETTINGS, buildChromeProxyConfig, normalizeBlacklist, normalizeWhitelist, validateProxySettings } from "./src/core.js";
 
 const $ = (id) => document.getElementById(id);
 const ui = { scheme: $("schemeInput"), host: $("hostInput"), port: $("portInput"), form: $("settingsForm"), save: $("saveButton"), notice: $("notice"), close: $("closeSettingsButton") };
-let settings = { ...DEFAULT_SETTINGS, whitelist: [] };
+let settings = { ...DEFAULT_SETTINGS, whitelist: [], blacklist: [] };
 
 function call(target, method, ...args) {
   return new Promise((resolve, reject) => target[method](...args, (result) => {
@@ -18,13 +18,13 @@ function notify(message, kind = "success") {
 async function load() {
   const stored = await call(chrome.storage.local, "get", "settings");
   const raw = stored?.settings ?? {};
-  settings = { ...DEFAULT_SETTINGS, ...raw, whitelist: normalizeWhitelist(raw.whitelist) };
+  settings = { ...DEFAULT_SETTINGS, ...raw, whitelist: normalizeWhitelist(raw.whitelist), blacklist: normalizeBlacklist(raw.blacklist) };
   ui.scheme.value = settings.scheme;
   ui.host.value = settings.host;
   ui.port.value = settings.port;
 }
 async function persist(next) {
-  settings = { ...settings, ...next, whitelist: normalizeWhitelist(next.whitelist ?? settings.whitelist) };
+  settings = { ...settings, ...next, whitelist: normalizeWhitelist(next.whitelist ?? settings.whitelist), blacklist: normalizeBlacklist(next.blacklist ?? settings.blacklist) };
   await call(chrome.storage.local, "set", { settings });
 }
 async function readProxyControl() {

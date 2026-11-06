@@ -15,50 +15,36 @@
           <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
             <defs>
               <linearGradient id="xee-gradient" x1="9" y1="9" x2="41" y2="40">
-                <stop stop-color="#FFD88A"/>
-                <stop offset=".48" stop-color="#D99CFF"/>
-                <stop offset="1" stop-color="#69DDF2"/>
+                <stop stop-color="#FFD88A"/><stop offset=".48" stop-color="#D99CFF"/><stop offset="1" stop-color="#69DDF2"/>
               </linearGradient>
               <linearGradient id="orbit-gradient" x1="7" y1="39" x2="43" y2="13">
-                <stop stop-color="#8D8CFF"/>
-                <stop offset=".55" stop-color="#F2BC9B"/>
-                <stop offset="1" stop-color="#8AE8FF"/>
+                <stop stop-color="#8D8CFF"/><stop offset=".55" stop-color="#F2BC9B"/><stop offset="1" stop-color="#8AE8FF"/>
               </linearGradient>
               <linearGradient id="direct-gradient" x1="7" y1="39" x2="44" y2="7">
-                <stop stop-color="#8D8CFF"/>
-                <stop offset=".48" stop-color="#D99CFF"/>
-                <stop offset="1" stop-color="#69DDF2"/>
+                <stop stop-color="#8D8CFF"/><stop offset=".48" stop-color="#D99CFF"/><stop offset="1" stop-color="#69DDF2"/>
               </linearGradient>
             </defs>
-
             <g class="route-shape route-clash">
               <path class="route-orbit" d="M7.7 29.5C8.5 17.4 19.1 7.4 31.5 9.1c12.3 1.7 14.7 14.8 7.6 24.8-7.5 10.6-24 10.7-30.5.6-1.3-1.8-1.7-3.6-.9-5Z"/>
               <circle class="route-node node-one" cx="8.6" cy="29.7" r="3"/>
               <circle class="route-node node-two" cx="23.9" cy="41.1" r="3"/>
               <circle class="route-node node-three" cx="40.1" cy="18.2" r="3.15"/>
             </g>
-
             <g class="route-shape route-direct">
               <path class="direct-path" d="M6.8 37.1c7.9 4.5 19 2 24.3-11.1 4.4-10.7 8-15.5 13.2-20.1"/>
               <path class="direct-arrow" d="m36.8 6.2 7.3-.3-.2 7.3"/>
               <circle class="route-node" cx="7.3" cy="37.2" r="1.8"/>
             </g>
-
             <g class="route-shape route-system">
               <path class="system-loop" d="M6 24C6 7 18 6 24 24s18 17 18 0S30 6 24 24 6 41 6 24Z"/>
-              <circle class="route-node" cx="6.2" cy="24" r="2.6"/>
-              <circle class="route-node" cx="41.8" cy="24" r="2.6"/>
+              <circle class="route-node" cx="6.2" cy="24" r="2.6"/><circle class="route-node" cx="41.8" cy="24" r="2.6"/>
             </g>
-
             <g class="route-shape route-unknown">
               <path class="unknown-orbit" d="M7.5 29.5C7 21.1 13.6 11.8 23 8.8M31.3 8.8c6.8 2.3 10.5 8.1 10.2 14.7M39.5 30.2c-3.9 7.5-12.3 12-20.7 10.1M11.3 37.1Q8.5 34.7 7.6 31"/>
-              <path class="unknown-signal" d="m26.6 5.5 4.1 4.1-4.1 4.1-4.1-4.1Z"/>
-              <circle class="unknown-halo" cx="26.6" cy="9.6" r="6.2"/>
+              <path class="unknown-signal" d="m26.6 5.5 4.1 4.1-4.1 4.1-4.1-4.1Z"/><circle class="unknown-halo" cx="26.6" cy="9.6" r="6.2"/>
             </g>
-
             <path class="xee-core" d="M13 12.5 35 35.5M35 12.5 13 35.5"/>
-            <path class="xee-flare" d="M37.2 7.2v6.1m-3.05-3.05h6.1"/>
-            <circle class="xee-star" cx="37.2" cy="10.25" r="1.7"/>
+            <path class="xee-flare" d="M37.2 7.2v6.1m-3.05-3.05h6.1"/><circle class="xee-star" cx="37.2" cy="10.25" r="1.7"/>
             <path class="xee-glint" d="M7.5 13.2c1.4-2 3.2-3.15 5.45-3.7"/>
           </svg>
         </div>
@@ -67,111 +53,121 @@
           <div class="brand-caption">轻量浏览器代理控制</div>
         </div>
       </div>
-      <div class="header-actions"><button id="openSettingsButton" class="settings-button" type="button" title="打开完整设置" aria-label="打开完整设置">⚙ 设置</button><div id="statePill" class="state-pill state-neutral"><span class="state-dot"></span><span id="stateText">读取状态中</span></div></div>
+      <div class="header-actions">
+        <button id="openSettingsButton" class="settings-button" type="button" title="打开完整设置" aria-label="打开完整设置">⚙ 设置</button>
+        <div id="statePill" class="state-pill state-neutral"><span class="state-dot"></span><span id="stateText">读取状态中</span></div>
+      </div>
     </header>
 
-    <section class="status-permission-panel" aria-label="网页状态图标">
+    <section class="status-permission-panel" aria-label="逐网页状态">
       <div class="status-permission-copy">
         <span class="eyebrow">PER-TAB STATUS</span>
         <strong>图标显示当前网页实际走哪条路由</strong>
-        <small id="statusPermissionHint">区分交给 Clash、白名单直连和系统代理。首次添加白名单时会请求逐网页状态权限。</small>
+        <small id="statusPermissionHint">区分交给 Clash、白名单直连、黑名单强制代理和系统代理。</small>
       </div>
       <button id="statusPermissionButton" class="status-permission-button" type="button">启用逐网页显示</button>
     </section>
 
-    <section class="mode-panel" aria-labelledby="modeTitle">
-      <div class="section-heading">
-        <div>
-          <div class="eyebrow">CONNECTION</div>
-          <h1 id="modeTitle">代理模式</h1>
-        </div>
-        <span class="subtle-label">仅影响 Edge</span>
-      </div>
-      <div class="mode-grid" role="group" aria-label="代理模式">
-        <button class="mode-button" type="button" data-mode="clash" aria-pressed="true">
-          <span class="mode-icon">↗</span><span class="mode-title">Clash 代理</span><span class="mode-hint">使用本机端口</span>
-        </button>
-        <button class="mode-button" type="button" data-mode="direct" aria-pressed="false">
-          <span class="mode-icon">○</span><span class="mode-title">直接连接</span><span class="mode-hint">不使用浏览器代理</span>
-        </button>
-        <button class="mode-button mode-button-wide" type="button" data-mode="system" aria-pressed="false">
-          <span class="mode-icon">◌</span><span class="mode-title">跟随系统代理</span><span class="mode-hint">使用 Windows 的代理设置</span>
-        </button>
-      </div>
-      <p id="modeHelp" class="inline-help">普通网站交给 Clash，Clash 继续执行你现有的节点和分流规则。</p>
-    </section>
+    <nav class="view-nav" aria-label="面板导航">
+      <button class="view-nav-button" data-view="overview" aria-current="page" type="button">概览</button>
+      <button class="view-nav-button" data-view="rules" type="button">域名规则 <span id="totalRuleCount" class="nav-count">0</span></button>
+    </nav>
 
-    <section class="config-panel" aria-labelledby="configTitle">
-      <div class="section-heading compact-heading">
-        <div>
-          <div class="eyebrow">LOCAL CLASH / MIHOMO</div>
-          <h2 id="configTitle">连接设置</h2>
+    <div id="overviewView" class="popup-view">
+      <section class="mode-panel" aria-labelledby="modeTitle">
+        <div class="section-heading">
+          <div><div class="eyebrow">CONNECTION</div><h1 id="modeTitle">代理模式</h1></div>
+          <span class="subtle-label">仅影响 Edge</span>
         </div>
-        <span class="local-tag"><span></span>本机连接</span>
-      </div>
-      <div class="field-grid">
-        <label class="field field-scheme">
-          <span>代理协议</span>
-          <select id="schemeInput">
-            <option value="http">HTTP（推荐：Mixed / HTTP 端口）</option>
-            <option value="socks5">SOCKS5（SOCKS 端口）</option>
-          </select>
-        </label>
-        <label class="field field-host">
-          <span>服务器地址</span>
-          <input id="hostInput" type="text" value="127.0.0.1" autocomplete="off" spellcheck="false" placeholder="127.0.0.1">
-        </label>
-        <label class="field field-port">
-          <span>端口</span>
-          <input id="portInput" type="number" min="1" max="65535" step="1" value="7890" inputmode="numeric">
-        </label>
-      </div>
-      <button id="saveConnectButton" class="primary-button" type="button">保存并连接 Clash <span aria-hidden="true">→</span></button>
-      <p class="microcopy">默认端口仅作起点，请以 Clash 当前的 Mixed / HTTP / SOCKS 监听端口为准。</p>
-    </section>
+        <div class="mode-grid" role="group" aria-label="代理模式">
+          <button class="mode-button" type="button" data-mode="clash" aria-pressed="true">
+            <span class="mode-icon">↗</span><span class="mode-title">Clash 代理</span><span class="mode-hint">默认交给 Clash</span>
+          </button>
+          <button class="mode-button" type="button" data-mode="direct" aria-pressed="false">
+            <span class="mode-icon">○</span><span class="mode-title">直接连接</span><span class="mode-hint">黑名单例外走 Clash</span>
+          </button>
+          <button class="mode-button mode-button-wide" type="button" data-mode="system" aria-pressed="false">
+            <span class="mode-icon">◌</span><span class="mode-title">跟随系统代理</span><span class="mode-hint">此模式暂不应用域名规则</span>
+          </button>
+        </div>
+        <p id="modeHelp" class="inline-help">普通网站交给 Clash，域名规则可以为指定网站设置直连或强制代理。</p>
+      </section>
 
-    <section class="site-panel" aria-labelledby="siteTitle">
-      <div class="section-heading compact-heading">
-        <div>
-          <div class="eyebrow">CURRENT WEBSITE</div>
-          <h2 id="siteTitle">当前网站</h2>
+      <section class="config-panel" aria-labelledby="configTitle">
+        <div class="section-heading compact-heading">
+          <div><div class="eyebrow">LOCAL CLASH / MIHOMO</div><h2 id="configTitle">连接设置</h2></div>
+          <span class="local-tag"><span></span>本机连接</span>
         </div>
-        <span id="siteRoutePill" class="route-pill route-unknown">读取中</span>
-      </div>
-      <div class="current-site-card">
-        <div class="site-symbol" aria-hidden="true">⌁</div>
-        <div class="site-details">
-          <div id="currentHost" class="current-host">正在识别网页…</div>
-          <div id="currentRoute" class="current-route">点击扩展图标即可管理当前网站</div>
+        <div class="field-grid">
+          <label class="field field-scheme"><span>代理协议</span>
+            <select id="schemeInput">
+              <option value="http">HTTP（推荐：Mixed / HTTP 端口）</option>
+              <option value="socks5">SOCKS5（SOCKS 端口）</option>
+            </select>
+          </label>
+          <label class="field field-host"><span>服务器地址</span><input id="hostInput" type="text" value="127.0.0.1" autocomplete="off" spellcheck="false" placeholder="127.0.0.1"></label>
+          <label class="field field-port"><span>端口</span><input id="portInput" type="number" min="1" max="65535" step="1" value="7890" inputmode="numeric"></label>
         </div>
-      </div>
-      <label class="check-row">
-        <input id="includeSubdomainsInput" type="checkbox" checked>
-        <span class="custom-check" aria-hidden="true"></span>
-        <span>同时让它的子域名直连</span>
-      </label>
-      <div class="site-actions">
-        <button id="addCurrentButton" class="secondary-button" type="button" disabled>＋ 加入直连白名单</button>
-        <button id="removeCurrentButton" class="text-button" type="button" hidden>移出白名单</button>
-      </div>
-      <p id="siteHint" class="microcopy">白名单在浏览器代理层生效，优先于 Clash 分流规则。</p>
-    </section>
+        <button id="saveConnectButton" class="primary-button" type="button">保存并连接 Clash <span aria-hidden="true">→</span></button>
+        <p class="microcopy">默认端口仅作起点，请以 Clash 当前的 Mixed / HTTP / SOCKS 监听端口为准。</p>
+      </section>
 
-    <section class="list-panel" aria-labelledby="listTitle">
-      <div class="section-heading compact-heading list-heading">
-        <div>
-          <div class="eyebrow">BYPASS LIST</div>
-          <h2 id="listTitle">直连白名单 <span id="listCount" class="count-bubble">0</span></h2>
+      <section class="site-panel" aria-labelledby="siteTitle">
+        <div class="section-heading compact-heading">
+          <div><div class="eyebrow">CURRENT WEBSITE</div><h2 id="siteTitle">当前网站</h2></div>
+          <span id="siteRoutePill" class="route-pill route-unknown">读取中</span>
         </div>
-        <button id="clearListButton" class="text-button danger-text" type="button" hidden>清空</button>
-      </div>
-      <div id="whitelistEmpty" class="empty-state">
-        <span class="empty-icon" aria-hidden="true">⌖</span>
-        <span>还没有添加网站</span>
-        <span class="empty-subtitle">在上方打开一个网站，点一下即可加入</span>
-      </div>
-      <ul id="whitelistList" class="whitelist-list" aria-label="直连白名单网站"></ul>
-    </section>
+        <div class="current-site-card">
+          <div class="site-symbol" aria-hidden="true">⌁</div>
+          <div class="site-details">
+            <div id="currentHost" class="current-host">正在识别网页…</div>
+            <div id="currentRoute" class="current-route">点击扩展图标即可管理当前网站</div>
+          </div>
+        </div>
+        <label class="check-row">
+          <input id="includeSubdomainsInput" type="checkbox" checked><span class="custom-check" aria-hidden="true"></span>
+          <span>同时应用到它的子域名</span>
+        </label>
+        <div class="site-actions">
+          <button id="addCurrentDirectButton" class="secondary-button" type="button" disabled>＋ 加入直连白名单</button>
+          <button id="addCurrentProxyButton" class="secondary-button force-proxy-button" type="button" disabled>↗ 强制走 Clash</button>
+          <button id="removeCurrentRuleButton" class="text-button" type="button" hidden>移除当前规则</button>
+        </div>
+        <p id="siteHint" class="microcopy">黑名单强制走 Clash，优先级高于直连白名单。</p>
+      </section>
+    </div>
+
+    <div id="rulesView" class="popup-view" hidden>
+      <section class="rules-panel" aria-labelledby="rulesTitle">
+        <div class="section-heading compact-heading">
+          <div><div class="eyebrow">DOMAIN ROUTING</div><h2 id="rulesTitle">域名规则</h2></div>
+          <span id="listCount" class="count-bubble">0</span>
+        </div>
+        <div class="rule-tabs" role="tablist" aria-label="域名规则类型">
+          <button id="whitelistTab" class="rule-tab" type="button" aria-pressed="true">直连白名单</button>
+          <button id="blacklistTab" class="rule-tab" type="button" aria-pressed="false">代理黑名单</button>
+        </div>
+        <p id="ruleDescription" class="inline-help">命中白名单的网站会绕过浏览器代理，直接连接。</p>
+        <form id="ruleForm" class="rule-form">
+          <label class="field"><span>添加域名</span><input id="ruleHostInput" type="text" autocomplete="off" spellcheck="false" placeholder="example.com"></label>
+          <button id="addRuleButton" class="secondary-button" type="submit">添加规则</button>
+        </form>
+        <label class="check-row rule-subdomain-row">
+          <input id="ruleIncludeSubdomainsInput" type="checkbox" checked><span class="custom-check" aria-hidden="true"></span>
+          <span>同时应用到它的子域名</span>
+        </label>
+        <div class="rule-list-heading">
+          <span id="activeRuleTitle">直连白名单</span>
+          <button id="clearRulesButton" class="text-button danger-text" type="button" hidden>清空</button>
+        </div>
+        <div id="rulesEmpty" class="empty-state">
+          <span class="empty-icon" aria-hidden="true">⌖</span><span>还没有添加域名</span>
+          <span class="empty-subtitle">可以在概览页将当前网站加入规则</span>
+        </div>
+        <ul id="rulesList" class="whitelist-list" aria-label="域名规则列表"></ul>
+        <p class="rules-footnote">黑名单表示强制经本机 Clash；白名单表示浏览器直连。两类规则重叠时黑名单优先。系统代理模式下两类规则暂不生效。</p>
+      </section>
+    </div>
 
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
     <footer class="footer"><span>ALAXEE PROXY</span><span>本地保存 · 无云端服务</span></footer>

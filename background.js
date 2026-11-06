@@ -1,5 +1,6 @@
 import {
   DEFAULT_SETTINGS,
+  normalizeBlacklist,
   normalizeWhitelist,
   resolveGlobalRoute,
   resolveTabRoute
@@ -253,7 +254,8 @@ async function readContext() {
   const settings = {
     ...DEFAULT_SETTINGS,
     ...raw,
-    whitelist: normalizeWhitelist(raw.whitelist)
+    whitelist: normalizeWhitelist(raw.whitelist),
+    blacklist: normalizeBlacklist(raw.blacklist)
   };
   return { settings, proxyState };
 }
