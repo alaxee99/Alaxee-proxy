@@ -176,3 +176,42 @@ export function describeProxyMode(value, savedSettings) {
   if (value.mode === "auto_detect") return "自动检测代理";
   return "状态未知";
 }
+
+
+/**
+ * Resolves what the browser will do with a page before Clash applies its own rules.
+ * "clash" means the browser hands the request to the configured local listener;
+ * it does not guarantee Clash will choose a proxy node rather than DIRECT.
+ */
+export function resolveTabRoute(url, proxyState, savedSettings) {
+  const hostname = getPageHostname(url);
+  if (!hostname || !proxyState || typeof proxyState !== "object") return "unknown";
+
+  const level = proxyState.levelOfControl;
+  if (level === "not_controllable" || level === "controlled_by_other_extensions") {
+    return "unknown";
+  }
+
+  const value = proxyState.value ?? {};
+  if (value.mode === "direct") return "direct";
+  if (value.mode === "system") return "system";
+
+  if (value.mode === "fixed_servers") {
+    if (inferActiveMode(value, savedSettings) !== "clash") return "unknown";
+    return isHostWhitelisted(hostname, savedSettings.whitelist) ? "direct" : "clash";
+  }
+
+  return "unknown";
+}
+
+export function resolveGlobalRoute(proxyState, savedSettings) {
+  if (!proxyState || typeof proxyState !== "object") return "unknown";
+  const level = proxyState.levelOfControl;
+  if (level === "not_controllable" || level === "controlled_by_other_extensions") return "unknown";
+
+  const value = proxyState.value ?? {};
+  if (value.mode === "direct") return "direct";
+  if (value.mode === "system") return "system";
+  if (value.mode === "fixed_servers" && inferActiveMode(value, savedSettings) === "clash") return "clash";
+  return "unknown";
+}

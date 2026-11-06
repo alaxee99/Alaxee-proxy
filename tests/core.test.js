@@ -9,6 +9,8 @@ import {
   isHostWhitelisted,
   normalizeHostname,
   normalizeWhitelist,
+  resolveGlobalRoute,
+  resolveTabRoute,
   validateProxySettings
 } from "../src/core.js";
 
@@ -85,4 +87,34 @@ test("identifies the actual Edge mode instead of assuming the saved preference i
     mode: "fixed_servers",
     rules: { singleProxy: { host: "127.0.0.1", port: 7891, scheme: "http" } }
   }, saved), null);
+});
+
+
+test("classifies per-tab routes without confusing browser and Clash routing", () => {
+  const settings = {
+    host: "127.0.0.1",
+    port: "7890",
+    scheme: "http",
+    whitelist: [{ host: "example.com", includeSubdomains: true }]
+  };
+  const ownClash = {
+    levelOfControl: "controlled_by_this_extension",
+    value: {
+      mode: "fixed_servers",
+      rules: { singleProxy: { host: "127.0.0.1", port: 7890, scheme: "http" } }
+    }
+  };
+
+  assert.equal(resolveTabRoute("https://www.example.com/path", ownClash, settings), "direct");
+  assert.equal(resolveTabRoute("https://other.test/", ownClash, settings), "clash");
+  assert.equal(resolveTabRoute("edge://extensions", ownClash, settings), "unknown");
+  assert.equal(resolveTabRoute("https://other.test/", {
+    levelOfControl: "controlled_by_other_extensions",
+    value: { mode: "direct" }
+  }, settings), "unknown");
+  assert.equal(resolveTabRoute("https://other.test/", {
+    levelOfControl: "controlled_by_this_extension",
+    value: { mode: "system" }
+  }, settings), "system");
+  assert.equal(resolveGlobalRoute(ownClash, settings), "clash");
 });

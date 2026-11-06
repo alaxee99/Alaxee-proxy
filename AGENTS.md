@@ -7,8 +7,9 @@
 - Do not read, rewrite, or upload Clash configuration files. Only send browser traffic to the user-configured local proxy endpoint.
 
 ## Privacy and permissions
-- Keep permissions minimal: `proxy`, `storage`, and `activeTab` unless a concrete feature requires a permission and its need is documented.
-- Do not add `host_permissions`, `webRequest`, broad tab access, content scripts, or page-content collection for the current feature set.
+- Keep required permissions minimal: `proxy`, `storage`, and `activeTab`.
+- The per-tab toolbar-state feature may request the optional `tabs` permission only after the user explicitly enables it in the popup. It is used only to read tab URLs and update each tab's icon/title locally; it must not collect page contents, browsing history or transmit browsing data.
+- Do not add `host_permissions`, `webRequest`, content scripts, or page-content collection.
 - Keep user settings and whitelist data in `chrome.storage.local`.
 - Never expose the local proxy port on LAN or ask the user to enable Clash LAN access as a default requirement.
 

@@ -13,8 +13,8 @@
     "default_title": "Alaxee Proxy",
     "default_popup": "src/popup.html",
     "default_icon": {
-      "16": "icons/icon16.png",
-      "32": "icons/icon32.png"
+      "16": "icons/status/clash16.png",
+      "32": "icons/status/clash32.png"
     }
   },
   "icons": {
@@ -26,5 +26,12 @@
   "options_ui": {
     "page": "settings.html",
     "open_in_tab": true
-  }
+  },
+  "background": {
+    "service_worker": "background.js",
+    "type": "module"
+  },
+  "optional_permissions": [
+    "tabs"
+  ]
 }

@@ -78,11 +78,25 @@ test("repository includes the dependency-free Edge store packager", async () => 
   assert.equal(packageJson.scripts["package:extension"], "python scripts/package-extension.py");
 });
 
-test("Edge Add-ons release workflow is tag-triggered and uses repository secrets", async () => {
-  const workflow = await readFile(path.join(root, ".github/workflows/publish-edge-addons.yml"), "utf8");
-  assert.ok(workflow.includes('tags:\n      - "v*"'));
-  assert.match(workflow, /EDGE_ADDONS_PRODUCT_ID/);
-  assert.match(workflow, /EDGE_ADDONS_CLIENT_ID/);
-  assert.match(workflow, /EDGE_ADDONS_API_KEY/);
-  assert.match(workflow, /publish-edge-addons\.mjs/);
+test("Edge Add-ons publisher script exists without triggering store publication in CI", async () => {
+  assertLocalFile("scripts/publish-edge-addons.mjs", "Edge Add-ons publisher script");
+  const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+  assert.equal(packageJson.scripts["package:extension"], "python scripts/package-extension.py");
+});
+
+
+test("per-tab status service worker and optional permission are declared", async () => {
+  assert.equal(manifest.background?.service_worker, "background.js");
+  assert.ok(manifest.optional_permissions?.includes("tabs"));
+  assertLocalFile(manifest.background.service_worker, "background service worker");
+  const worker = await readFile(path.join(root, manifest.background.service_worker), "utf8");
+  assert.match(worker, /chrome\.tabs\.onActivated/);
+  assert.match(worker, /chrome\.proxy\.settings\.onChange/);
+  assert.match(worker, /resolveTabRoute/);
+});
+
+test("all four XEE toolbar state icons are included in the package", () => {
+  for (const state of ["clash", "direct", "system", "unknown"]) {
+    for (const size of [16, 32]) assertLocalFile(`icons/status/${state}${size}.png`, `${state} toolbar icon`);
+  }
 });

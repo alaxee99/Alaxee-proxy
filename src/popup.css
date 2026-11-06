@@ -121,3 +121,35 @@ h1, h2 { margin: 0; font-size: 14px; font-weight: 740; letter-spacing: .1px; }
 .header-actions { display: flex; align-items: center; gap: 7px; }
 .settings-button { border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; background: var(--surface); color: var(--muted); font-size: 10px; font-weight: 650; white-space: nowrap; }
 .settings-button:hover { border-color: var(--accent); color: var(--accent-strong); }
+
+
+.status-permission-panel {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: -5px 0 11px;
+  padding: 10px 11px;
+  border: 1px solid color-mix(in srgb, var(--accent) 23%, var(--line));
+  border-radius: 12px;
+  background: linear-gradient(110deg, var(--accent-soft), var(--surface));
+}
+.status-permission-copy { min-width: 0; display: grid; gap: 3px; }
+.status-permission-copy .eyebrow { margin: 0; }
+.status-permission-copy strong { font-size: 10px; font-weight: 760; }
+.status-permission-copy small { color: var(--muted); font-size: 9px; line-height: 1.4; }
+.status-permission-button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 10px;
+  border: 1px solid color-mix(in srgb, var(--accent) 34%, var(--line));
+  border-radius: 8px;
+  color: var(--accent-strong);
+  background: var(--surface);
+  font-size: 10px;
+  font-weight: 720;
+  transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+}
+.status-permission-button:hover { transform: translateY(-1px); box-shadow: 0 5px 12px rgba(8, 127, 115, .12); }
+.status-permission-button:active { transform: scale(.97); }
+.status-permission-button[aria-pressed="true"] { color: var(--accent-strong); background: var(--accent-soft); }
