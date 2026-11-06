@@ -13,7 +13,7 @@
     "default_title": "Alaxee Proxy",
     "default_popup": "src/popup.html",
     "default_icon": {
-      "16": "icons/status/clash32.png",
+      "16": "icons/status/clash16.png",
       "32": "icons/status/clash32.png"
     }
   },
