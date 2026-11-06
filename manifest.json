@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Alaxee Proxy",
   "short_name": "Alaxee Proxy",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "description": "A lightweight Edge proxy controller with direct whitelist and force-proxy domain rules.",
   "permissions": [
     "proxy",
