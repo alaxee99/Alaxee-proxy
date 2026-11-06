@@ -2,7 +2,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   mode: "clash",
   host: "127.0.0.1",
   port: "7890",
-  scheme: "http",
+  scheme: "socks5",
   includeSubdomains: true,
   whitelist: [],
   blacklist: []

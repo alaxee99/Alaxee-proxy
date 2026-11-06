@@ -52,13 +52,25 @@ test("extension JavaScript imports resolve to packaged files", async () => {
 });
 
 
-test("settings page closes its tab instead of navigating to the popup document", async () => {
+test("the full options page reuses the popup controls and controller", async () => {
   const html = await readFile(path.join(root, manifest.options_ui.page), "utf8");
-  assert.match(html, /id="closeSettingsButton"/);
-  assert.doesNotMatch(html, /href=["']src\/popup\.html["']/);
-  const script = await readFile(path.join(root, "settings.js"), "utf8");
-  assert.match(script, /chrome\.tabs, "getCurrent"/);
+  assert.match(html, /src="settings\.js"/);
+  const entry = await readFile(path.join(root, "settings.js"), "utf8");
+  assert.match(entry, /chrome\.runtime\.getURL\("src\/popup\.html\?full=1"\)/);
+  assert.match(entry, /window\.location\.replace/);
+
+  const popup = await readFile(path.join(root, "src/popup.html"), "utf8");
+  for (const id of ["schemeInput", "saveConnectButton", "currentHost", "addCurrentDirectButton", "addCurrentProxyButton", "whitelistTab", "blacklistTab", "ruleHostInput"]) {
+    assert.ok(popup.includes(`id="${id}"`), `full settings control missing: ${id}`);
+  }
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.match(script, /get\("full"\) === "1"/);
+  assert.match(script, /chrome\.tabs, "create"/);
   assert.match(script, /chrome\.tabs, "remove"/);
+  assert.match(script, /sourceTabId/);
+  const css = await readFile(path.join(root, "src/popup.css"), "utf8");
+  assert.match(css, /html\.full-page #overviewView/);
+  assert.match(css, /html\.full-page #overviewView \.mode-panel/);
 });
 
 test("popup uses one bounded scroll container", async () => {
@@ -152,8 +164,16 @@ test("popup uses exact per-page route resolver for the current page status", asy
   assert.ok(script.includes("系统代理模式，规则暂不生效"));
 });
 
-test("advanced settings preserve both direct and force-proxy rule lists", async () => {
-  const script = await readFile(path.join(root, "settings.js"), "utf8");
+test("SOCKS5 is the new-install default while HTTP remains selectable", async () => {
+  const core = await readFile(path.join(root, "src/core.js"), "utf8");
+  const popup = await readFile(path.join(root, "src/popup.html"), "utf8");
+  assert.match(core, /scheme: "socks5"/);
+  assert.match(popup, /SOCKS5（推荐：Mixed \/ SOCKS5 端口）/);
+  assert.match(popup, /HTTP（Mixed \/ HTTP 端口）/);
+});
+
+test("full settings preserve both direct and force-proxy rule lists through the shared controller", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
   assert.ok(script.includes("normalizeBlacklist(raw.blacklist)"));
   assert.ok(script.includes("normalizeWhitelist(raw.whitelist)"));
 });

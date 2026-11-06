@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import {
+  DEFAULT_SETTINGS,
   buildBypassList,
   buildChromeProxyConfig,
   buildPacScript,
@@ -34,6 +35,13 @@ function stateFor(settings) {
     value: buildChromeProxyConfig(settings)
   };
 }
+
+test("new installations prefer SOCKS5 while saved settings can still select HTTP", () => {
+  assert.equal(DEFAULT_SETTINGS.scheme, "socks5");
+  assert.deepEqual(validateProxySettings({ host: "127.0.0.1", port: "7890", scheme: "http" }), {
+    host: "127.0.0.1", port: 7890, scheme: "http"
+  });
+});
 
 test("normalizes domain names, IDNs and trailing dots", () => {
   assert.equal(normalizeHostname(" Example.COM. "), "example.com");
