@@ -352,8 +352,14 @@ async function addDomainRule(type, host, includeSubdomains = true) {
     [otherKey]: otherEntries
   };
 
-  if (activeMode === "system") {
-    await persistWithoutApplying(next, `${normalized.host} 的${type === "blacklist" ? "代理黑名单" : "直连白名单"}规则`);
+  if (activeMode === "system" || !activeMode) {
+    await persistWithoutApplying(
+      next,
+      `${normalized.host} 的${type === "blacklist" ? "代理黑名单" : "直连白名单"}规则`
+    );
+    if (!activeMode) {
+      sendNotice(`${normalized.host} 的规则已保存在本机，但浏览器代理正由其他程序控制，Alaxee Proxy 没有覆盖它。`, "warning");
+    }
   } else {
     await saveSettings(next);
     await applyMode(activeMode, next);
@@ -366,8 +372,9 @@ async function removeDomainRule(host, type) {
   const key = type === "blacklist" ? "blacklist" : "whitelist";
   const nextEntries = settings[key].filter((entry) => entry.host !== host);
   const message = `${host} 已从${type === "blacklist" ? "代理黑名单" : "直连白名单"}移除`;
-  if (activeMode === "system") {
+  if (activeMode === "system" || !activeMode) {
     await persistWithoutApplying({ [key]: nextEntries }, message);
+    if (!activeMode) sendNotice(`${message}。代理设置由其他程序控制，因此没有更改浏览器代理。`, "warning");
   } else {
     await saveSettings({ [key]: nextEntries });
     await applyMode(activeMode, { [key]: nextEntries });
@@ -379,8 +386,9 @@ async function removeDomainRule(host, type) {
 async function clearActiveRules() {
   const key = activeRuleType === "blacklist" ? "blacklist" : "whitelist";
   const next = { [key]: [] };
-  if (activeMode === "system") {
+  if (activeMode === "system" || !activeMode) {
     await persistWithoutApplying(next, activeRuleType === "blacklist" ? "代理黑名单已清空" : "直连白名单已清空");
+    if (!activeMode) sendNotice("规则已清空；当前浏览器代理由其他程序控制，未更改其设置。", "warning");
   } else {
     await saveSettings(next);
     await applyMode(activeMode, next);
@@ -414,7 +422,7 @@ function requestTabsPermissionAndRun(action) {
   });
 }
 
-async function addManualRule() {
+async function addManualRule(tabsPermissionGranted = null) {
   const host = ui.ruleHostInput.value.trim();
   if (!host) {
     sendNotice("请先输入域名。", "error");
@@ -423,6 +431,9 @@ async function addManualRule() {
   try {
     await addDomainRule(activeRuleType, host, ui.ruleIncludeSubdomains.checked);
     ui.ruleHostInput.value = "";
+    if (tabsPermissionGranted === false) {
+      sendNotice("规则已保存；但逐网页图标权限未开启，工具栏暂时显示未知状态。", "warning");
+    }
   } catch (error) {
     sendNotice(`添加失败：${error.message}`, "error");
   }
@@ -485,7 +496,7 @@ async function initialize() {
   ui.blacklistTab.addEventListener("click", () => switchRuleType("blacklist"));
   ui.ruleForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    void addManualRule();
+    requestTabsPermissionAndRun((granted) => addManualRule(granted));
   });
   ui.clearRules.addEventListener("click", () => {
     void clearActiveRules().catch((error) => sendNotice(`清空失败：${error.message}`, "error"));
