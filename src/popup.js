@@ -13,6 +13,20 @@ import {
   validateProxySettings
 } from "./core.js";
 
+const fullPageMode = new URLSearchParams(window.location.search).get("full") === "1";
+if (fullPageMode) {
+  document.documentElement.classList.add("full-page");
+  document.title = "Alaxee Proxy · 完整设置";
+  const intro = document.getElementById("fullPageIntro");
+  if (intro) intro.hidden = false;
+  const settingsButton = document.getElementById("openSettingsButton");
+  if (settingsButton) {
+    settingsButton.textContent = "关闭设置";
+    settingsButton.title = "关闭完整设置页，返回浏览器";
+    settingsButton.setAttribute("aria-label", "关闭完整设置页");
+  }
+}
+
 const $ = (id) => document.getElementById(id);
 const ui = {
   statePill: $("statePill"),
@@ -128,7 +142,19 @@ async function saveSettings(nextSettings) {
 }
 
 async function getCurrentTab() {
+  if (fullPageMode) {
+    const sourceTabId = Number(new URLSearchParams(window.location.search).get("sourceTabId"));
+    if (Number.isInteger(sourceTabId) && sourceTabId > 0) {
+      try {
+        const sourceTab = await chromeCall(chrome.tabs, "get", sourceTabId);
+        if (sourceTab) return sourceTab;
+      } catch {
+        // The source tab may have closed or its URL may no longer be available.
+      }
+    }
+  }
   const tabs = await chromeCall(chrome.tabs, "query", { active: true, lastFocusedWindow: true });
+  if (fullPageMode) return tabs?.find((tab) => getPageHostname(tab?.url)) ?? tabs?.[0] ?? null;
   return tabs?.[0] ?? null;
 }
 
@@ -521,7 +547,24 @@ async function initialize() {
   });
 
   ui.saveConnect.addEventListener("click", connectClash);
-  ui.openSettings.addEventListener("click", () => chrome.runtime.openOptionsPage());
+  ui.openSettings.addEventListener("click", async () => {
+    try {
+      if (fullPageMode) {
+        const currentTab = await chromeCall(chrome.tabs, "getCurrent");
+        if (currentTab?.id != null) await chromeCall(chrome.tabs, "remove", currentTab.id);
+        else window.close();
+        return;
+      }
+      const currentTab = await getCurrentTab();
+      const params = new URLSearchParams({ full: "1" });
+      if (currentTab?.id != null) params.set("sourceTabId", String(currentTab.id));
+      await chromeCall(chrome.tabs, "create", {
+        url: chrome.runtime.getURL(`src/popup.html?${params.toString()}`)
+      });
+    } catch (error) {
+      sendNotice(`无法打开完整设置：${error.message}`, "error");
+    }
+  });
   ui.addCurrentDirect.addEventListener("click", () => {
     requestTabsPermissionAndRun((granted) => addCurrentRule("whitelist", granted));
   });
