@@ -108,6 +108,8 @@ async function inspectCurrentPage() {
 
 function renderCurrentPage() {
   const route = resolveTabRoute(currentTabUrl, proxyStateSnapshot, settings);
+  const whitelisted = isHostWhitelisted(currentHostname, settings.whitelist);
+  const whitelistBypass = proxyStateSnapshot?.value?.mode === "fixed_servers" && whitelisted;
   const routeLabels = {
     clash: "交给 Clash",
     direct: "浏览器直连",
@@ -116,7 +118,7 @@ function renderCurrentPage() {
   };
   const routeMessages = {
     clash: "此网站未命中直连白名单，浏览器请求会交给本机 Clash 处理。",
-    direct: isHostWhitelisted(currentHostname, settings.whitelist)
+    direct: whitelistBypass
       ? "此网站命中直连白名单，浏览器请求会绕过浏览器代理。"
       : "当前浏览器处于全局直连模式，所有网站都会直接连接。",
     system: "此网站跟随 Windows 系统代理设置。",
@@ -144,14 +146,15 @@ function renderCurrentPage() {
     return;
   }
 
-  const whitelisted = isHostWhitelisted(currentHostname, settings.whitelist);
   ui.currentHost.textContent = currentHostname;
   ui.currentRoute.textContent = routeMessages[route];
   ui.addCurrent.disabled = whitelisted;
   ui.removeCurrent.hidden = !whitelisted;
   ui.includeSubdomains.disabled = whitelisted;
   ui.siteHint.textContent = whitelisted
-    ? "该域名已加入浏览器直连白名单；此规则不会修改 Clash 自身的分流配置。"
+    ? whitelistBypass
+      ? "此域名命中浏览器直连白名单；不会交给 Clash 的普通代理规则处理。"
+      : "此域名已保存为白名单，但当前是全局直连或系统代理模式，实际路由并不依赖这条白名单。"
     : route === "clash"
       ? "添加后会绕过浏览器代理；未添加的网站仍交给 Clash 按现有规则处理。"
       : "白名单只影响浏览器处于 Clash 代理模式时的浏览器级绕过规则。";
