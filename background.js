@@ -72,9 +72,15 @@ async function refreshAllTabs() {
   await setActionState(globalRoute);
 
   const hasPermission = await hasTabsPermission();
-  if (!hasPermission) return;
-
   const tabs = await chromeCall(chrome.tabs, "query", {});
+  if (!hasPermission) {
+    // Clear any previous per-tab overrides when the optional permission is revoked.
+    await Promise.all((tabs ?? [])
+      .filter((tab) => Number.isInteger(tab.id))
+      .map((tab) => setActionState(globalRoute, tab.id)));
+    return;
+  }
+
   await Promise.all((tabs ?? [])
     .filter((tab) => Number.isInteger(tab.id))
     .map((tab) => {
