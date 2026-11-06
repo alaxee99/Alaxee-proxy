@@ -1,3 +1,5 @@
+> 当前仓库尚未配置自动发布 GitHub Actions 工作流。本指南中的自动化段落是后续启用方案；目前请使用 `npm run package:extension` 生成 ZIP，并通过 Partner Center 手动提交。
+
 # Microsoft Edge Add-ons distribution
 
 ## What can be automated
