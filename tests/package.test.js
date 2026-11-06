@@ -100,3 +100,25 @@ test("all four XEE toolbar state icons are included in the package", () => {
     for (const size of [16, 32]) assertLocalFile(`icons/status/${state}${size}.png`, `${state} toolbar icon`);
   }
 });
+
+
+test("popup brand mark follows the active page route with four distinct XEE silhouettes", async () => {
+  const html = await readFile(path.join(root, "src/popup.html"), "utf8");
+  const css = await readFile(path.join(root, "src/popup.css"), "utf8");
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.match(html, /id="brandMark"/);
+  for (const route of ["clash", "direct", "system", "unknown"]) {
+    assert.match(html, new RegExp(`route-shape route-${route}`));
+    assert.match(css, new RegExp(`data-route="\\${route}"`));
+  }
+  assert.match(script, /resolveTabRoute\(currentTabUrl, proxyStateSnapshot, settings\)/);
+  assert.match(css, /prefers-reduced-motion:\\s*reduce/);
+});
+
+test("adding a whitelist entry requests optional per-tab URL permission", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.match(script, /ui\\.addCurrent\\.addEventListener\\("click", \\(\\) => \\{/);
+  assert.match(script, /chrome\\.permissions\\.request\\(\\{ permissions: \\[\\"tabs\\"\\] \\}/);
+  assert.match(script, /tabsPermissionGranted === false/);
+  assert.match(script, /启用逐网页显示/);
+});
