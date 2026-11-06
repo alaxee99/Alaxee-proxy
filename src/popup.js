@@ -98,11 +98,7 @@ async function inspectCurrentPage() {
     currentHostname = null;
   }
   renderCurrentPage();
-  if (tab?.id != null && typeof tab.url === "string") {
-    chrome.runtime.sendMessage({ type: "SYNC_CURRENT_TAB", tabId: tab.id, url: tab.url }, () => {
-      void chrome.runtime.lastError;
-    });
-  }
+
 }
 
 function renderCurrentPage() {
