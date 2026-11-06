@@ -23,6 +23,7 @@ The extension does not change your Clash/Mihomo rule sets. Websites not included
 - `proxy`: required to set Edge's browser-level proxy mode and hostname bypass list.
 - `storage`: required to save the user's proxy preferences and bypass-list entries locally.
 - `activeTab`: required to read the hostname of the currently active page after the user invokes the toolbar popup, for the one-click bypass feature.
+- `tabs` (optional): requested only if the user enables per-tab toolbar status. It reads tab URLs locally to select the matching state icon/title; it does not read page contents or transmit browsing data.
 
 ## Privacy
 See `PRIVACY.md`. Publish a publicly accessible privacy policy URL before submitting the store listing if Partner Center requires it for the declared data practices.
