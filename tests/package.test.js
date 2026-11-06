@@ -129,8 +129,36 @@ test("toolbar reports unknown rather than the global mode when tabs permission i
   assert.ok(worker.includes('setActionState("unknown", tab.id)'));
 });
 
-test("popup distinguishes whitelist bypass from global direct mode", async () => {
+test("popup includes overview and separate domain-rule submenus", async () => {
+  const html = await readFile(path.join(root, "src/popup.html"), "utf8");
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
-  assert.ok(script.includes('proxyStateSnapshot?.value?.mode === "fixed_servers" && whitelisted'));
-  assert.ok(script.includes("当前浏览器处于全局直连模式"));
+  assert.ok(html.includes('data-view="overview"'));
+  assert.ok(html.includes('data-view="rules"'));
+  assert.ok(html.includes('id="whitelistTab"'));
+  assert.ok(html.includes('id="blacklistTab"'));
+  assert.ok(html.includes('id="ruleHostInput"'));
+  assert.ok(script.includes('switchRuleType("whitelist")'));
+  assert.ok(script.includes('addDomainRule("blacklist"'));
+});
+
+test("popup uses exact per-page route resolver for the current page status", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes("resolveTabRoute(currentTabUrl, proxyStateSnapshot, settings)"));
+  assert.ok(script.includes("isHostBlacklisted(currentHostname, settings.blacklist)"));
+  assert.ok(script.includes("isHostWhitelisted(currentHostname, settings.whitelist)"));
+  assert.ok(script.includes("系统代理模式，规则暂不生效"));
+});
+
+test("advanced settings preserve both direct and force-proxy rule lists", async () => {
+  const script = await readFile(path.join(root, "settings.js"), "utf8");
+  assert.ok(script.includes("normalizeBlacklist(raw.blacklist)"));
+  assert.ok(script.includes("normalizeWhitelist(raw.whitelist)"));
+});
+
+test("proxy domain rules remain local-only and add no network permissions", () => {
+  assert.ok(manifest.permissions.includes("proxy"));
+  assert.ok(manifest.permissions.includes("storage"));
+  assert.ok(manifest.optional_permissions.includes("tabs"));
+  assert.ok(!manifest.permissions.includes("webRequest"));
+  assert.ok(!manifest.permissions.includes("identity"));
 });
