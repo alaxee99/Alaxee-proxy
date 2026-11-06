@@ -122,3 +122,15 @@ test("adding a whitelist entry requests optional per-tab URL permission", async 
   assert.ok(script.includes("tabsPermissionGranted === false"));
   assert.ok(script.includes("启用逐网页显示"));
 });
+
+test("toolbar reports unknown rather than the global mode when tabs permission is absent", async () => {
+  const worker = await readFile(path.join(root, "background.js"), "utf8");
+  assert.ok(worker.includes('await setActionState("unknown")'));
+  assert.ok(worker.includes('setActionState("unknown", tab.id)'));
+});
+
+test("popup distinguishes whitelist bypass from global direct mode", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes('proxyStateSnapshot?.value?.mode === "fixed_servers" && whitelisted'));
+  assert.ok(script.includes("当前浏览器处于全局直连模式"));
+});
