@@ -4,66 +4,23 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="color-scheme" content="light dark">
-  <title>Alaxee Proxy · 设置</title>
+  <title>Alaxee Proxy · 完整设置</title>
   <link rel="stylesheet" href="settings.css">
 </head>
 <body>
-  <main class="settings-shell">
-    <header class="topbar">
-      <div class="brand">
-        <div class="brand-mark" aria-hidden="true">⌁</div>
-        <div>
-          <div class="brand-name">ALAXEE <span>PROXY</span></div>
-          <div class="brand-caption">连接设置</div>
-        </div>
+  <main class="settings-shell settings-launch-shell">
+    <div class="brand">
+      <div class="brand-mark" aria-hidden="true">⌁</div>
+      <div>
+        <div class="brand-name">ALAXEE <span>PROXY</span></div>
+        <div class="brand-caption">完整设置中心</div>
       </div>
-      <button id="closeSettingsButton" class="back-link" type="button" title="关闭设置页，回到浏览器">返回浏览器</button>
-    </header>
-    <p class="return-hint">关闭设置页后，点击 Edge 工具栏中的 Alaxee Proxy 图标即可重新打开快捷面板。</p>
-
-    <section class="hero">
-      <div class="eyebrow">LOCAL CONNECTION</div>
-      <h1>Clash / Mihomo 连接设置</h1>
-      <p>这里设置 Edge 应该连接到电脑上的哪个本地代理端口。Clash 的节点、订阅和分流规则都保持原样，不需要在这里重复配置。</p>
+    </div>
+    <section class="launch-card" role="status" aria-live="polite">
+      <div class="eyebrow">CONTROL CENTER</div>
+      <h1>正在打开完整设置</h1>
+      <p>正在载入与快捷面板共用的代理模式、连接和域名规则控制界面…</p>
     </section>
-
-    <section class="panel">
-      <div class="panel-heading">
-        <div><div class="eyebrow">PROXY ENDPOINT</div><h2>本地代理地址</h2></div>
-        <span class="local-tag"><i></i>仅本机</span>
-      </div>
-      <form id="settingsForm">
-        <label class="field">
-          <span>代理协议</span>
-          <select id="schemeInput">
-            <option value="http">HTTP（Clash Mixed / HTTP 端口）</option>
-            <option value="socks5">SOCKS5（Clash SOCKS 端口）</option>
-          </select>
-        </label>
-        <div class="field-row">
-          <label class="field"><span>服务器地址</span><input id="hostInput" type="text" value="127.0.0.1" autocomplete="off" spellcheck="false" required></label>
-          <label class="field"><span>端口</span><input id="portInput" type="number" min="1" max="65535" step="1" value="7890" inputmode="numeric" required></label>
-        </div>
-        <div class="actions">
-          <button id="saveButton" class="secondary-button" type="button">仅保存设置</button>
-          <button id="applyButton" class="primary-button" type="submit">保存并连接 Clash <span>→</span></button>
-        </div>
-      </form>
-      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-    </section>
-
-    <section class="panel info-panel">
-      <div class="eyebrow">HOW IT WORKS</div>
-      <h2>你只需要知道这几件事</h2>
-      <ul>
-        <li>建议优先使用 Clash 的 Mixed Port，协议选择 HTTP 即可。</li>
-        <li>常见端口示例是 7890，但必须以你 Clash 软件当前显示的端口为准。</li>
-        <li>点击“保存并连接”后，Edge 普通网站请求会交给 Clash 处理，Clash 继续按现有规则分流。</li>
-        <li>快捷面板中的直连白名单会在浏览器代理层绕过 Clash。</li>
-        <li>这里的连接状态仅确认 Edge 代理配置已应用，不代表 Clash 服务器一定可连通。</li>
-      </ul>
-    </section>
-    <footer>ALAXEE PROXY <span>本地保存 · 无云端服务</span></footer>
   </main>
   <script type="module" src="settings.js"></script>
 </body>
