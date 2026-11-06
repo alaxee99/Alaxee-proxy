@@ -363,3 +363,92 @@ h1, h2 { margin: 0; font-size: 14px; font-weight: 740; letter-spacing: .1px; }
   }
   .notice.notice-warning { color: #efc27f; }
 }
+
+
+/* The options page reuses the exact popup controls and controller in a full-page layout. */
+html.full-page,
+html.full-page body {
+  width: 100%;
+  height: auto;
+  min-height: 100%;
+  max-height: none;
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+html.full-page body { min-height: 100vh; }
+
+html.full-page .app-shell {
+  width: min(100%, 1240px);
+  height: auto;
+  min-height: 100vh;
+  max-height: none;
+  margin: 0 auto;
+  overflow: visible;
+  padding: 28px clamp(20px, 4vw, 48px) 40px;
+  scrollbar-width: auto;
+}
+
+html.full-page .topbar { margin-bottom: 22px; }
+html.full-page .brand-caption { font-size: 12px; }
+
+.full-page-intro {
+  margin: 0 0 20px;
+  padding: 20px 22px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: linear-gradient(120deg, var(--surface), var(--surface-soft));
+  box-shadow: var(--shadow);
+}
+.full-page-intro[hidden] { display: none !important; }
+.full-page-intro h1 { margin: 0; font-size: clamp(21px, 2.3vw, 28px); letter-spacing: -.04em; }
+.full-page-intro p { max-width: 760px; margin: 8px 0 0; color: var(--muted); font-size: 13px; line-height: 1.7; }
+
+html.full-page .status-permission-panel { margin-bottom: 16px; }
+html.full-page .view-nav {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  margin: 0 0 18px;
+  padding: 5px;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 5px 18px rgba(20, 35, 38, .06);
+}
+html.full-page .view-nav-button { min-height: 40px; font-size: 12px; }
+html.full-page #overviewView {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+html.full-page #overviewView .mode-panel { grid-column: 1 / -1; margin-bottom: 0; }
+html.full-page #overviewView .config-panel,
+html.full-page #overviewView .site-panel { min-width: 0; margin-bottom: 0; }
+html.full-page .mode-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+html.full-page .mode-button-wide { grid-column: auto; }
+html.full-page .mode-button { min-height: 74px; padding: 13px; }
+html.full-page .mode-title { font-size: 13px; }
+html.full-page .mode-hint { font-size: 11px; }
+html.full-page .section-heading h1,
+html.full-page .section-heading h2 { font-size: 18px; }
+html.full-page .field-grid { grid-template-columns: minmax(0, .9fr) minmax(0, 1.3fr) 140px; }
+html.full-page .field-scheme { grid-column: auto; }
+html.full-page .field input,
+html.full-page .field select { min-height: 44px; font-size: 13px; }
+html.full-page .rules-panel { padding: 20px; }
+html.full-page .rule-list { max-height: none; }
+
+@media (max-width: 760px) {
+  html.full-page .app-shell { padding: 18px 14px 28px; }
+  html.full-page #overviewView { grid-template-columns: minmax(0, 1fr); }
+  html.full-page #overviewView .mode-panel { grid-column: auto; }
+  html.full-page .mode-grid { grid-template-columns: 1fr 1fr; }
+  html.full-page .mode-button-wide { grid-column: span 2; }
+  html.full-page .field-grid { grid-template-columns: minmax(0, 1fr) 112px; }
+  html.full-page .field-scheme { grid-column: 1 / -1; }
+  html.full-page .status-permission-panel { align-items: flex-start; flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html.full-page .view-nav { backdrop-filter: none; }
+}
