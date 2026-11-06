@@ -172,8 +172,8 @@ test("SOCKS5 is the new-install default while HTTP remains selectable", async ()
   assert.match(popup, /HTTP（Mixed \/ HTTP 端口）/);
 });
 
-test("advanced settings preserve both direct and force-proxy rule lists", async () => {
-  const script = await readFile(path.join(root, "settings.js"), "utf8");
+test("full settings preserve both direct and force-proxy rule lists through the shared controller", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
   assert.ok(script.includes("normalizeBlacklist(raw.blacklist)"));
   assert.ok(script.includes("normalizeWhitelist(raw.whitelist)"));
 });
