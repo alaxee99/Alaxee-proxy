@@ -25,7 +25,16 @@ export function normalizeHostname(value) {
   }
 
   const normalized = parsed.hostname.toLowerCase().replace(/\.$/, "");
-  if (!normalized || normalized === "[") throw new Error("主机名格式无效。");
+  const ipv6 = /^\[[0-9a-f:.]+\]$/i.test(normalized) && normalized.includes(":");
+  const ipv4Parts = normalized.split(".");
+  const ipv4 = ipv4Parts.length === 4 && ipv4Parts.every((part) => /^\d{1,3}$/.test(part) && Number(part) <= 255);
+  const dnsLabels = normalized.split(".");
+  const dns = normalized.length <= 253 && dnsLabels.every((label) =>
+    label.length >= 1 &&
+    label.length <= 63 &&
+    /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)
+  );
+  if (!normalized || (!ipv6 && !ipv4 && !dns)) throw new Error("主机名格式无效。");
   return normalized;
 }
 
