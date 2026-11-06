@@ -2,7 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import {
   DEFAULT_SETTINGS,
-  DEFAULT_SETTINGS,
   buildBypassList,
   buildChromeProxyConfig,
   buildPacScript,
@@ -42,11 +41,6 @@ test("new installations prefer SOCKS5 while saved settings can still select HTTP
   assert.deepEqual(validateProxySettings({ host: "127.0.0.1", port: "7890", scheme: "http" }), {
     host: "127.0.0.1", port: 7890, scheme: "http"
   });
-});
-
-test("new installations default to SOCKS5 and continue to allow HTTP", () => {
-  assert.equal(DEFAULT_SETTINGS.scheme, "socks5");
-  assert.equal(validateProxySettings({ host: "127.0.0.1", port: "7890", scheme: "http" }).scheme, "http");
 });
 
 test("normalizes domain names, IDNs and trailing dots", () => {
