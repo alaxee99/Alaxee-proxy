@@ -35,7 +35,13 @@ function drawStateIcon(route, size) {
   const context = canvas.getContext("2d", { willReadFrequently: true });
   if (!context) throw new Error("2D canvas is unavailable");
 
-  context.scale(size / 48, size / 48);
+  // Chromium's toolbar action button is fixed at 16 DIP. The previous
+  // artwork occupied too little of that canvas, making the icon look inset
+  // beside neighboring extensions. Zoom the complete mark around its center
+  // so the orbit reaches close to the canvas edge without clipping.
+  context.translate(size / 2, size / 2);
+  context.scale((size / 48) * 1.16, (size / 48) * 1.16);
+  context.translate(-24, -24);
   context.lineCap = "round";
   context.lineJoin = "round";
 
