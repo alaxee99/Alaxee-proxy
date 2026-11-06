@@ -78,13 +78,10 @@ test("repository includes the dependency-free Edge store packager", async () => 
   assert.equal(packageJson.scripts["package:extension"], "python scripts/package-extension.py");
 });
 
-test("Edge Add-ons release workflow is tag-triggered and uses repository secrets", async () => {
-  const workflow = await readFile(path.join(root, ".github/workflows/publish-edge-addons.yml"), "utf8");
-  assert.ok(workflow.includes('tags:\n      - "v*"'));
-  assert.match(workflow, /EDGE_ADDONS_PRODUCT_ID/);
-  assert.match(workflow, /EDGE_ADDONS_CLIENT_ID/);
-  assert.match(workflow, /EDGE_ADDONS_API_KEY/);
-  assert.match(workflow, /publish-edge-addons\.mjs/);
+test("Edge Add-ons publisher script exists without triggering store publication in CI", async () => {
+  assertLocalFile("scripts/publish-edge-addons.mjs", "Edge Add-ons publisher script");
+  const packageJson = JSON.parse(await readFile(path.join(root, "package.json"), "utf8"));
+  assert.equal(packageJson.scripts["package:extension"], "python scripts/package-extension.py");
 });
 
 
