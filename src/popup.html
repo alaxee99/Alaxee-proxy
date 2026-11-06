@@ -77,6 +77,7 @@
     <nav class="view-nav" aria-label="面板导航">
       <button class="view-nav-button" data-view="overview" aria-current="page" type="button">概览</button>
       <button class="view-nav-button" data-view="rules" type="button">域名规则 <span id="totalRuleCount" class="nav-count">0</span></button>
+      <button class="view-nav-button" data-view="account" type="button">统一账号</button>
     </nav>
 
     <div id="overviewView" class="popup-view">
@@ -175,8 +176,40 @@
       </section>
     </div>
 
+    <div id="accountView" class="popup-view" hidden>
+      <section class="account-panel" aria-labelledby="accountTitle">
+        <div class="section-heading compact-heading">
+          <div><div class="eyebrow">ONE ALAXEE IDENTITY</div><h2 id="accountTitle">ALAXEE 统一账号</h2></div>
+          <span class="account-local-tag">身份统一 · 配置按设备隔离</span>
+        </div>
+        <div id="accountSignedOut">
+          <p class="account-description">使用你在 ALAXEE Start 注册的同一邮箱和密码登录。Proxy 不会创建另一套账户。</p>
+          <form id="accountLoginForm" class="account-login-form">
+            <label class="field"><span>ALAXEE 账户邮箱</span><input id="accountEmailInput" type="email" autocomplete="username" required maxlength="254" placeholder="name@example.com"></label>
+            <label class="field"><span>密码</span><input id="accountPasswordInput" type="password" autocomplete="current-password" required maxlength="256" placeholder="输入账户密码"></label>
+            <button id="accountLoginButton" class="primary-button" type="submit">登录 ALAXEE 账号 <span aria-hidden="true">→</span></button>
+          </form>
+          <p class="account-footnote">还没有 ALAXEE 账号？请先在 ALAXEE Start 注册并完成邮箱验证，再回到这里登录。</p>
+        </div>
+        <div id="accountSignedIn" hidden>
+          <div class="account-user-card">
+            <span class="account-user-mark">XEE</span>
+            <div class="account-user-copy"><strong id="accountUserEmail">已连接</strong><small>当前 Proxy 使用的 ALAXEE 用户身份</small></div>
+            <span class="account-connected-pill">已登录</span>
+          </div>
+          <button id="accountSignOutButton" class="secondary-button account-signout" type="button">退出此设备上的 ALAXEE 账号</button>
+        </div>
+        <div class="account-sync-note">
+          <strong>域名规则云同步 · 下一阶段</strong>
+          <p>此版本先接入统一身份验证，不会上传或下载白名单、黑名单。下一阶段再实现多设备规则同步。</p>
+          <p>Clash 地址、端口、协议和浏览器代理模式始终只保存在本机，不会上传到账号。</p>
+        </div>
+        <p id="accountFeedback" class="account-feedback" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
-    <footer class="footer"><span>ALAXEE PROXY</span><span>本地保存 · 无云端服务</span></footer>
+    <footer class="footer"><span>ALAXEE PROXY</span><span>代理端点仅本机保存</span></footer>
   </main>
   <script type="module" src="popup.js"></script>
 </body>

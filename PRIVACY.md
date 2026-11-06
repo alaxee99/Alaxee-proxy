@@ -1,29 +1,41 @@
 # Alaxee Proxy privacy notice
 
-Last updated: 2026-11-06
+Last updated: 2026-11-07
 
-Alaxee Proxy is a local-only Microsoft Edge extension that lets the user control Edge's browser proxy setting and maintain a direct-connection bypass list for selected hostnames.
+Alaxee Proxy is a Microsoft Edge extension for controlling Edge's browser proxy setting and maintaining direct-connection and force-proxy domain rules. Proxy routing configuration remains local to the browser profile.
 
-## Information the extension accesses
+## Information stored locally
 
-- When the user invokes the extension on a web page, `activeTab` is used to read that tab's URL so the user can add the current hostname to the bypass list.
-- The extension stores its proxy mode, local proxy address and port, and bypass-list hostnames in the browser's local extension storage (`chrome.storage.local`).
-- The extension does not read page contents, form fields, passwords, or browsing history.
+- Proxy mode, scheme, local proxy address and port, and domain whitelist/blacklist entries are stored in the browser's local extension storage (`chrome.storage.local`).
+- The optional ALAXEE account session is stored in extension-local storage as a rotating Supabase access-token / refresh-token pair. The extension does not store the account password.
+- The account session is local to this Edge extension installation. It is not automatically shared with another browser profile or device.
+
+## ALAXEE account authentication
+
+When the user signs in, the extension sends the supplied email address and password directly to the ALAXEE Supabase Auth service at `https://xcvxpallbauhpgigyxeh.supabase.co` over HTTPS. Supabase validates the credentials and returns a session. The extension uses that session to identify the same ALAXEE user account already used by ALAXEE Start.
+
+The extension requests only the fixed Supabase project host permission. It does not send tab URLs, page content, proxy endpoint values, or domain rules as part of sign-in. The password is held only in memory for the sign-in request and is not written to extension storage or logs.
+
+Signing out removes the local session. The extension also asks Supabase Auth to revoke the current local session when reachable; if that cannot be confirmed, the UI reports that remote revocation was not confirmed.
+
+## Domain rules and cloud-sync status
+
+In this version, whitelist and blacklist entries remain local. Account sign-in does not upload or download them. A later cloud-sync release may add user-scoped rule storage; this notice must be updated before that feature is enabled.
+
+The local proxy address, port, scheme, and selected browser proxy mode are device-specific settings and are not intended for cloud synchronization.
 
 ## Optional per-tab status icons
 
-If the user enables the optional `tabs` permission, the extension reads tab URLs to determine whether each HTTP/HTTPS tab is assigned to the configured Clash listener, bypassed by the local direct list, using system proxy mode, or has an unknown/externally controlled state. This processing happens locally in the extension service worker and is used only to update that tab's toolbar icon and tooltip. The extension does not read page contents, form fields, passwords, browsing history, or transmit tab URLs to any server. The permission can remain ungranted; in that case the toolbar displays the global proxy mode.
+If the user enables the optional `tabs` permission, the extension reads tab URLs locally to determine the route and update each tab's toolbar icon and tooltip. It does not read page contents, form fields, passwords, or browsing history, and does not transmit tab URLs to Supabase.
 
-## Collection, transmission, and sharing
-
-Alaxee Proxy does not send this information to Alaxee, a developer-operated server, analytics provider, or other third party. It does not include accounts, cloud sync, telemetry, remote configuration, or advertising. The settings and bypass list remain in the local Edge profile.
+## Proxy traffic
 
 When proxy mode is enabled, Edge sends browser network requests to the proxy endpoint configured by the user (normally a local Clash/Mihomo listener such as `127.0.0.1`). The proxy application and its operator may process network traffic according to their own configuration and privacy practices. Alaxee Proxy does not operate that proxy service.
 
 ## User controls
 
-Users can change or remove the proxy endpoint and bypass-list entries in the extension, switch Edge to direct or system proxy mode, or uninstall the extension. Uninstalling the extension removes its local extension storage according to Edge's extension-data behavior.
+Users can change or remove the proxy endpoint and domain rules, sign out of the ALAXEE account, switch Edge to direct or system proxy mode, or uninstall the extension. Uninstalling the extension removes its local extension storage according to Edge's extension-data behavior.
 
 ## Changes and contact
 
-This notice will be updated if the extension's data practices change. For support or privacy questions, use the contact details shown in the Alaxee Proxy project repository.
+This notice will be updated before any later cloud rule-sync feature is enabled. For support or privacy questions, use the contact details shown in the Alaxee Proxy project repository.

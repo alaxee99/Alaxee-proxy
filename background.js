@@ -1,3 +1,6 @@
+import { createSupabaseAuthService } from "./src/supabase-auth.js";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./src/supabase-config.js";
+
 import {
   DEFAULT_SETTINGS,
   normalizeBlacklist,
@@ -319,8 +322,46 @@ function refreshAllSafely() {
   });
 }
 
+const supabaseAuth = createSupabaseAuthService({
+  supabaseUrl: SUPABASE_URL,
+  publishableKey: SUPABASE_PUBLISHABLE_KEY,
+  storage: {
+    get: (key) => chromeCall(chrome.storage.local, "get", key),
+    set: (value) => chromeCall(chrome.storage.local, "set", value),
+    remove: (key) => chromeCall(chrome.storage.local, "remove", key)
+  }
+});
+
+// Keep rotating Auth tokens available only to trusted extension contexts.
+try {
+  const accessLevelUpdate = chrome.storage.local.setAccessLevel?.({ accessLevel: "TRUSTED_CONTEXTS" });
+  accessLevelUpdate?.catch?.(() => {});
+} catch {
+  // Older Chromium builds may not expose this optional API.
+}
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (sender.id !== chrome.runtime.id || message?.type !== "SYNC_ALL_TABS") return;
+  if (sender.id !== chrome.runtime.id) return;
+
+  if (message?.type === "ALAXEE_AUTH_GET_SESSION") {
+    supabaseAuth.getSession()
+      .then((session) => sendResponse({ ok: true, user: session?.user ?? null }))
+      .catch((error) => sendResponse({ ok: false, error: error?.message ?? "auth_session_failed" }));
+    return true;
+  }
+  if (message?.type === "ALAXEE_AUTH_SIGN_IN") {
+    supabaseAuth.signInWithPassword({ email: message.email, password: message.password })
+      .then((user) => sendResponse({ ok: true, user }))
+      .catch((error) => sendResponse({ ok: false, error: error?.message ?? "auth_sign_in_failed" }));
+    return true;
+  }
+  if (message?.type === "ALAXEE_AUTH_SIGN_OUT") {
+    supabaseAuth.signOut()
+      .then((result) => sendResponse({ ok: true, remoteRevoked: result.remoteRevoked }))
+      .catch((error) => sendResponse({ ok: false, error: error?.message ?? "auth_sign_out_failed" }));
+    return true;
+  }
+  if (message?.type !== "SYNC_ALL_TABS") return;
   refreshAllTabs()
     .then(() => sendResponse({ ok: true }))
     .catch((error) => sendResponse({ ok: false, error: error?.message ?? "sync_failed" }));

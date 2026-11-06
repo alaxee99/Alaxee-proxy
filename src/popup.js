@@ -52,6 +52,16 @@ const ui = {
   totalRuleCount: $("totalRuleCount"),
   overviewView: $("overviewView"),
   rulesView: $("rulesView"),
+  accountView: $("accountView"),
+  accountSignedOut: $("accountSignedOut"),
+  accountSignedIn: $("accountSignedIn"),
+  accountLoginForm: $("accountLoginForm"),
+  accountEmailInput: $("accountEmailInput"),
+  accountPasswordInput: $("accountPasswordInput"),
+  accountLoginButton: $("accountLoginButton"),
+  accountUserEmail: $("accountUserEmail"),
+  accountSignOutButton: $("accountSignOutButton"),
+  accountFeedback: $("accountFeedback"),
   viewButtons: [...document.querySelectorAll("[data-view]")],
   whitelistTab: $("whitelistTab"),
   blacklistTab: $("blacklistTab"),
@@ -73,6 +83,7 @@ let currentTabUrl = "";
 let proxyStateSnapshot = null;
 let activeMode = "clash";
 let activeView = "overview";
+let accountUser = null;
 let activeRuleType = "whitelist";
 let noticeTimer = null;
 
@@ -96,6 +107,92 @@ function chromeCall(target, method, ...args) {
       reject(error);
     }
   });
+}
+
+function sendAccountMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve(response ?? { ok: false, error: "账户服务没有返回结果。" });
+    });
+  });
+}
+
+function setAccountFeedback(message = "", kind = "") {
+  ui.accountFeedback.textContent = message;
+  ui.accountFeedback.className = kind ? `account-feedback account-feedback-${kind}` : "account-feedback";
+}
+
+function renderAccountUser(user) {
+  accountUser = user ?? null;
+  ui.accountSignedOut.hidden = Boolean(accountUser);
+  ui.accountSignedIn.hidden = !accountUser;
+  ui.accountUserEmail.textContent = accountUser?.email || "ALAXEE 账户已连接";
+}
+
+async function loadAccount() {
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_AUTH_GET_SESSION" });
+    if (!response.ok) throw new Error(response.error || "无法读取账户状态。");
+    renderAccountUser(response.user);
+    setAccountFeedback(response.user ? "统一账号已连接。" : "尚未登录。代理功能仍可在本机独立使用。", "neutral");
+  } catch (error) {
+    renderAccountUser(null);
+    setAccountFeedback(error.message || "暂时无法连接 ALAXEE 账户服务。", "error");
+  }
+}
+
+function readableAccountError(error) {
+  const message = String(error?.message || error || "");
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid login credentials") || normalized.includes("invalid_credentials")) {
+    return "邮箱或密码不正确，请确认这是 ALAXEE Start 中已注册的邮箱登录方式。";
+  }
+  if (normalized.includes("email not confirmed")) return "邮箱尚未验证，请先在 ALAXEE Start 完成邮箱验证。";
+  if (normalized.includes("无法连接") || normalized.includes("failed to fetch")) {
+    return "无法连接统一账号服务，请检查网络或代理后重试。";
+  }
+  return message || "登录失败，请稍后重试。";
+}
+
+async function submitAccountLogin(event) {
+  event.preventDefault();
+  const email = ui.accountEmailInput.value.trim();
+  const password = ui.accountPasswordInput.value;
+  if (!email || !password) return;
+  ui.accountLoginButton.disabled = true;
+  setAccountFeedback("正在验证 ALAXEE 账户…", "neutral");
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_AUTH_SIGN_IN", email, password });
+    if (!response.ok || !response.user) throw new Error(response.error || "登录失败。");
+    renderAccountUser(response.user);
+    ui.accountPasswordInput.value = "";
+    setAccountFeedback("登录成功。此设备已连接到你的 ALAXEE 统一账号。", "success");
+  } catch (error) {
+    setAccountFeedback(readableAccountError(error), "error");
+  } finally {
+    ui.accountLoginButton.disabled = false;
+  }
+}
+
+async function signOutAccount() {
+  ui.accountSignOutButton.disabled = true;
+  setAccountFeedback("正在退出…", "neutral");
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_AUTH_SIGN_OUT" });
+    if (!response.ok) throw new Error(response.error || "退出失败。");
+    renderAccountUser(null);
+    ui.accountPasswordInput.value = "";
+    setAccountFeedback(
+      response.remoteRevoked ? "已退出此设备上的 ALAXEE 账号。" : "本机已退出；远端撤销未能确认，请在账户安全设置中检查活动会话。",
+      response.remoteRevoked ? "success" : "error"
+    );
+  } catch (error) {
+    setAccountFeedback(error.message || "退出失败。", "error");
+  } finally {
+    ui.accountSignOutButton.disabled = false;
+  }
 }
 
 function getRuleList(type) {
@@ -247,14 +344,16 @@ function renderModes() {
 }
 
 function switchView(view) {
-  activeView = view === "rules" ? "rules" : "overview";
+  activeView = ["rules", "account"].includes(view) ? view : "overview";
   ui.overviewView.hidden = activeView !== "overview";
   ui.rulesView.hidden = activeView !== "rules";
+  ui.accountView.hidden = activeView !== "account";
   ui.viewButtons.forEach((button) => {
     if (button.dataset.view === activeView) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
   if (activeView === "rules") renderRules();
+  if (activeView === "account") void loadAccount();
 }
 
 function switchRuleType(type) {
@@ -518,6 +617,8 @@ async function initialize() {
   ui.viewButtons.forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.view));
   });
+  ui.accountLoginForm.addEventListener("submit", submitAccountLogin);
+  ui.accountSignOutButton.addEventListener("click", () => { void signOutAccount(); });
   ui.whitelistTab.addEventListener("click", () => switchRuleType("whitelist"));
   ui.blacklistTab.addEventListener("click", () => switchRuleType("blacklist"));
   ui.ruleForm.addEventListener("submit", (event) => {

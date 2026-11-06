@@ -452,3 +452,32 @@ html.full-page #rulesList { max-height: none; }
 @media (prefers-reduced-motion: reduce) {
   html.full-page .view-nav { backdrop-filter: none; }
 }
+
+
+/* ALAXEE unified account */
+.account-panel { min-width: 0; padding: 15px; margin-bottom: 10px; border: 1px solid var(--line); border-radius: 15px; background: var(--surface); box-shadow: var(--shadow); }
+.account-local-tag { padding: 5px 8px; border-radius: 99px; background: var(--surface-soft); color: var(--muted); font-size: 9px; white-space: nowrap; }
+.account-description, .account-footnote, .account-sync-note p { color: var(--muted); font-size: 10px; line-height: 1.6; }
+.account-description { margin: 0 0 13px; }
+.account-login-form { display: grid; gap: 10px; }
+.account-login-form .field input { width: 100%; min-width: 0; height: 36px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface-soft); color: var(--ink); padding: 0 10px; font-size: 11px; }
+.account-login-form .primary-button { margin-top: 2px; }
+.account-footnote { margin: 10px 1px 0; }
+.account-user-card { display: flex; align-items: center; gap: 10px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
+.account-user-mark { display: grid; place-items: center; flex: 0 0 38px; width: 38px; height: 38px; border-radius: 11px; background: linear-gradient(135deg,#8d8cff,#69ddf2); color: #142126; font-size: 10px; font-weight: 850; }
+.account-user-copy { display: grid; flex: 1; min-width: 0; gap: 4px; }
+.account-user-copy strong { overflow-wrap: anywhere; font-size: 12px; }
+.account-user-copy small { color: var(--muted); font-size: 9px; }
+.account-connected-pill { padding: 5px 7px; border-radius: 99px; background: var(--accent-soft); color: var(--accent-strong); font-size: 9px; font-weight: 750; }
+.account-signout { width: 100%; margin-top: 10px; }
+.account-sync-note { display: grid; gap: 5px; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 11px; background: var(--surface-soft); }
+.account-sync-note strong { font-size: 11px; }
+.account-sync-note p { margin: 0; }
+.account-feedback { min-height: 16px; margin: 10px 1px 0; color: var(--muted); font-size: 10px; line-height: 1.5; }
+.account-feedback-success { color: var(--accent-strong); }
+.account-feedback-error { color: var(--danger); }
+.account-feedback-neutral { color: var(--muted); }
+html.full-page #accountView { max-width: 760px; }
+html.full-page .account-panel { padding: 22px; }
+html.full-page .account-description, html.full-page .account-footnote, html.full-page .account-sync-note p { font-size: 12px; }
+html.full-page .account-login-form .field input { min-height: 44px; font-size: 13px; }
