@@ -6,10 +6,10 @@ import {
 } from "./src/core.js";
 
 const ICON_PATHS = Object.freeze({
-  clash: { 16: "icons/status/clash32.png", 32: "icons/status/clash32.png" },
-  direct: { 16: "icons/status/direct32.png", 32: "icons/status/direct32.png" },
-  system: { 16: "icons/status/system32.png", 32: "icons/status/system32.png" },
-  unknown: { 16: "icons/status/unknown32.png", 32: "icons/status/unknown32.png" }
+  clash: { 16: "icons/status/clash16.png", 32: "icons/status/clash32.png" },
+  direct: { 16: "icons/status/direct16.png", 32: "icons/status/direct32.png" },
+  system: { 16: "icons/status/system16.png", 32: "icons/status/system32.png" },
+  unknown: { 16: "icons/status/unknown16.png", 32: "icons/status/unknown32.png" }
 });
 
 const ICON_TITLES = Object.freeze({
