@@ -31,7 +31,9 @@ const ui = {
   count: $("listCount"),
   clearList: $("clearListButton"),
   notice: $("notice"),
-  openSettings: $("openSettingsButton")
+  openSettings: $("openSettingsButton"),
+  statusPermissionButton: $("statusPermissionButton"),
+  statusPermissionHint: $("statusPermissionHint")
 };
 
 let settings = { ...DEFAULT_SETTINGS, whitelist: [] };
@@ -88,13 +90,19 @@ async function getCurrentTab() {
 }
 
 async function inspectCurrentPage() {
+  let tab = null;
   try {
-    const tab = await getCurrentTab();
+    tab = await getCurrentTab();
     currentHostname = getPageHostname(tab?.url ?? "");
   } catch {
     currentHostname = null;
   }
   renderCurrentPage();
+  if (tab?.id != null && typeof tab.url === "string") {
+    chrome.runtime.sendMessage({ type: "SYNC_CURRENT_TAB", tabId: tab.id, url: tab.url }, () => {
+      void chrome.runtime.lastError;
+    });
+  }
 }
 
 function renderCurrentPage() {
@@ -287,9 +295,20 @@ async function connectClash() {
   }
 }
 
+function renderStatusPermission() {
+  chrome.permissions.contains({ permissions: ["tabs"] }, (granted) => {
+    ui.statusPermissionButton.textContent = granted ? "已启用 · 刷新" : "启用";
+    ui.statusPermissionButton.setAttribute("aria-pressed", String(granted));
+    ui.statusPermissionHint.textContent = granted
+      ? "已允许本地读取标签页网址；图标会逐标签页显示代理路线，不读取网页内容。"
+      : "启用后按每个网页的白名单状态更新工具栏图标。只读取标签页网址，不读取网页内容，也不会上传数据。";
+  });
+}
+
 async function initialize() {
   try {
     await loadSettings();
+    renderStatusPermission();
     renderModes();
     await inspectCurrentPage();
     await readProxyState();
@@ -305,6 +324,25 @@ async function initialize() {
       } catch (error) {
         sendNotice(`切换失败：${error.message}`, "error");
       }
+    });
+  });
+
+  ui.statusPermissionButton.addEventListener("click", () => {
+    // permissions.request must be called directly inside this user gesture.
+    chrome.permissions.request({ permissions: ["tabs"] }, (granted) => {
+      if (!granted) {
+        sendNotice("未授予标签页权限。工具栏仍显示全局代理模式；无法自动识别各网页的白名单状态。", "error");
+        renderStatusPermission();
+        return;
+      }
+      renderStatusPermission();
+      chrome.runtime.sendMessage({ type: "SYNC_ALL_TABS" }, (response) => {
+        if (chrome.runtime.lastError || !response?.ok) {
+          sendNotice("权限已启用，但标签页图标同步失败；请重新打开面板重试。", "error");
+          return;
+        }
+        sendNotice("已启用每网页状态图标。切换标签页时，图形会对应变化。", "success");
+      });
     });
   });
 
