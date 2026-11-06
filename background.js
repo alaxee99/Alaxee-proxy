@@ -16,7 +16,7 @@ const ICON_TITLES = Object.freeze({
   clash: "Alaxee Proxy · 此网页交由 Clash 处理",
   direct: "Alaxee Proxy · 此网页浏览器直连",
   system: "Alaxee Proxy · 此网页跟随系统代理",
-  unknown: "Alaxee Proxy · 代理状态未知或由其他程序控制"
+  unknown: "Alaxee Proxy · 当前网页状态未知，或代理设置由其他程序控制"
 });
 
 const ICON_IMAGE_CACHE = new Map();
@@ -281,19 +281,21 @@ async function hasTabsPermission() {
 
 async function refreshAllTabs() {
   const runtime = await readContext();
-  const globalRoute = resolveGlobalRoute(runtime.proxyState, runtime.settings);
-  await setActionState(globalRoute);
-
   const hasPermission = await hasTabsPermission();
   const tabs = await chromeCall(chrome.tabs, "query", {});
+
   if (!hasPermission) {
-    // Clear any previous per-tab overrides when the optional permission is revoked.
+    // Never present the global mode as though it were the active page's route.
+    // Unknown is the only truthful per-page state until URL access is granted.
+    await setActionState("unknown");
     await Promise.all((tabs ?? [])
       .filter((tab) => Number.isInteger(tab.id))
-      .map((tab) => setActionState(globalRoute, tab.id)));
+      .map((tab) => setActionState("unknown", tab.id)));
     return;
   }
 
+  const globalRoute = resolveGlobalRoute(runtime.proxyState, runtime.settings);
+  await setActionState(globalRoute);
   await Promise.all((tabs ?? [])
     .filter((tab) => Number.isInteger(tab.id))
     .map((tab) => {
