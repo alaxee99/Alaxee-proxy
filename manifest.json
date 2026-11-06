@@ -1,0 +1,30 @@
+{
+  "manifest_version": 3,
+  "name": "Alaxee Proxy",
+  "short_name": "Alaxee Proxy",
+  "version": "0.1.2",
+  "description": "A lightweight Edge proxy switcher for local Clash/Mihomo, with a per-domain direct bypass list.",
+  "permissions": [
+    "proxy",
+    "storage",
+    "activeTab"
+  ],
+  "action": {
+    "default_title": "Alaxee Proxy",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "options_ui": {
+    "page": "settings.html",
+    "open_in_tab": true
+  }
+}

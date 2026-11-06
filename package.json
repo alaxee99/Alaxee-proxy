@@ -1,0 +1,15 @@
+{
+  "name": "alaxee-proxy",
+  "version": "0.1.2",
+  "private": true,
+  "type": "module",
+  "description": "A lightweight Manifest V3 browser proxy switcher for Clash/Mihomo.",
+  "scripts": {
+    "test": "node --test",
+    "check": "node --check src/popup.js && node --check src/core.js && node --check settings.js && node --check scripts/publish-edge-addons.mjs && node --check tests/core.test.js && node tests/package.test.js",
+    "package:extension": "python scripts/package-extension.py"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

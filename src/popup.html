@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light dark">
+  <title>Alaxee Proxy</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <main class="app-shell">
+    <header class="topbar">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true"><span></span></div>
+        <div>
+          <div class="brand-name">ALAXEE <span>PROXY</span></div>
+          <div class="brand-caption">轻量浏览器代理控制</div>
+        </div>
+      </div>
+      <div class="header-actions"><button id="openSettingsButton" class="settings-button" type="button" title="打开完整设置" aria-label="打开完整设置">⚙ 设置</button><div id="statePill" class="state-pill state-neutral"><span class="state-dot"></span><span id="stateText">读取状态中</span></div></div>
+    </header>
+
+    <section class="mode-panel" aria-labelledby="modeTitle">
+      <div class="section-heading">
+        <div>
+          <div class="eyebrow">CONNECTION</div>
+          <h1 id="modeTitle">代理模式</h1>
+        </div>
+        <span class="subtle-label">仅影响 Edge</span>
+      </div>
+      <div class="mode-grid" role="group" aria-label="代理模式">
+        <button class="mode-button" type="button" data-mode="clash" aria-pressed="true">
+          <span class="mode-icon">↗</span><span class="mode-title">Clash 代理</span><span class="mode-hint">使用本机端口</span>
+        </button>
+        <button class="mode-button" type="button" data-mode="direct" aria-pressed="false">
+          <span class="mode-icon">○</span><span class="mode-title">直接连接</span><span class="mode-hint">不使用浏览器代理</span>
+        </button>
+        <button class="mode-button mode-button-wide" type="button" data-mode="system" aria-pressed="false">
+          <span class="mode-icon">◌</span><span class="mode-title">跟随系统代理</span><span class="mode-hint">使用 Windows 的代理设置</span>
+        </button>
+      </div>
+      <p id="modeHelp" class="inline-help">普通网站交给 Clash，Clash 继续执行你现有的节点和分流规则。</p>
+    </section>
+
+    <section class="config-panel" aria-labelledby="configTitle">
+      <div class="section-heading compact-heading">
+        <div>
+          <div class="eyebrow">LOCAL CLASH / MIHOMO</div>
+          <h2 id="configTitle">连接设置</h2>
+        </div>
+        <span class="local-tag"><span></span>本机连接</span>
+      </div>
+      <div class="field-grid">
+        <label class="field field-scheme">
+          <span>代理协议</span>
+          <select id="schemeInput">
+            <option value="http">HTTP（推荐：Mixed / HTTP 端口）</option>
+            <option value="socks5">SOCKS5（SOCKS 端口）</option>
+          </select>
+        </label>
+        <label class="field field-host">
+          <span>服务器地址</span>
+          <input id="hostInput" type="text" value="127.0.0.1" autocomplete="off" spellcheck="false" placeholder="127.0.0.1">
+        </label>
+        <label class="field field-port">
+          <span>端口</span>
+          <input id="portInput" type="number" min="1" max="65535" step="1" value="7890" inputmode="numeric">
+        </label>
+      </div>
+      <button id="saveConnectButton" class="primary-button" type="button">保存并连接 Clash <span aria-hidden="true">→</span></button>
+      <p class="microcopy">默认端口仅作起点，请以 Clash 当前的 Mixed / HTTP / SOCKS 监听端口为准。</p>
+    </section>
+
+    <section class="site-panel" aria-labelledby="siteTitle">
+      <div class="section-heading compact-heading">
+        <div>
+          <div class="eyebrow">CURRENT WEBSITE</div>
+          <h2 id="siteTitle">当前网站</h2>
+        </div>
+        <span id="siteRoutePill" class="route-pill route-unknown">读取中</span>
+      </div>
+      <div class="current-site-card">
+        <div class="site-symbol" aria-hidden="true">⌁</div>
+        <div class="site-details">
+          <div id="currentHost" class="current-host">正在识别网页…</div>
+          <div id="currentRoute" class="current-route">点击扩展图标即可管理当前网站</div>
+        </div>
+      </div>
+      <label class="check-row">
+        <input id="includeSubdomainsInput" type="checkbox" checked>
+        <span class="custom-check" aria-hidden="true"></span>
+        <span>同时让它的子域名直连</span>
+      </label>
+      <div class="site-actions">
+        <button id="addCurrentButton" class="secondary-button" type="button" disabled>＋ 加入直连白名单</button>
+        <button id="removeCurrentButton" class="text-button" type="button" hidden>移出白名单</button>
+      </div>
+      <p id="siteHint" class="microcopy">白名单在浏览器代理层生效，优先于 Clash 分流规则。</p>
+    </section>
+
+    <section class="list-panel" aria-labelledby="listTitle">
+      <div class="section-heading compact-heading list-heading">
+        <div>
+          <div class="eyebrow">BYPASS LIST</div>
+          <h2 id="listTitle">直连白名单 <span id="listCount" class="count-bubble">0</span></h2>
+        </div>
+        <button id="clearListButton" class="text-button danger-text" type="button" hidden>清空</button>
+      </div>
+      <div id="whitelistEmpty" class="empty-state">
+        <span class="empty-icon" aria-hidden="true">⌖</span>
+        <span>还没有添加网站</span>
+        <span class="empty-subtitle">在上方打开一个网站，点一下即可加入</span>
+      </div>
+      <ul id="whitelistList" class="whitelist-list" aria-label="直连白名单网站"></ul>
+    </section>
+
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <footer class="footer"><span>ALAXEE PROXY</span><span>本地保存 · 无云端服务</span></footer>
+  </main>
+  <script type="module" src="popup.js"></script>
+</body>
+</html>
