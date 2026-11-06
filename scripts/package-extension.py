@@ -22,13 +22,9 @@ RUNTIME_FILES = (
     "icons/icon32.png",
     "icons/icon48.png",
     "icons/icon128.png",
-    "icons/status/clash16.png",
     "icons/status/clash32.png",
-    "icons/status/direct16.png",
     "icons/status/direct32.png",
-    "icons/status/system16.png",
     "icons/status/system32.png",
-    "icons/status/unknown16.png",
     "icons/status/unknown32.png",
 )
 
