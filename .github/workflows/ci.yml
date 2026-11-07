@@ -12,6 +12,21 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: proxy_migration_test
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d proxy_migration_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/proxy_migration_test
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,6 +40,8 @@ jobs:
           python-version: "3.x"
       - name: Run tests
         run: npm test
+      - name: Verify Proxy database migration and RLS in disposable PostgreSQL
+        run: bash scripts/test-proxy-rule-migration.sh
       - name: Check JavaScript syntax
         run: npm run check
       - name: Validate manifest JSON
