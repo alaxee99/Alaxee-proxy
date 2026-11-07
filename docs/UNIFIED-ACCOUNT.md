@@ -18,7 +18,7 @@ A shared account means the same ALAXEE user ID is recognized across products. Ea
 
 Keep these fields on the device: proxy host, port, scheme, browser proxy mode, and device-specific connection state.
 
-The cloud dataset is limited to domain whitelist and force-proxy blacklist entries, including subdomain matching options. The implementation contract uses one row per `(user_id, host)` so a host cannot be both allowlisted and force-proxied, with tombstones and server revisions for safe multi-device conflict handling. The dedicated table is `public.proxy_domain_rules`; do not reuse Start's `public.user_settings`. The schema migration is not yet created or deployed, and sign-in still performs no rule upload/download.
+The cloud dataset is limited to domain whitelist and force-proxy blacklist entries, including subdomain matching options. The implementation contract uses one row per `(user_id, host)` so a host cannot be both allowlisted and force-proxied, with tombstones and server revisions for safe multi-device conflict handling. The dedicated table is `public.proxy_domain_rules`; do not reuse Start's `public.user_settings`. The migration file exists and passes disposable PostgreSQL/RLS CI tests, but it is not deployed. The isolated sync engine/outbox module is present on the feature branch; the service worker is not integrated and sign-in still performs no rule upload/download.
 
 ## Security
 
