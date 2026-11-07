@@ -167,21 +167,23 @@ $$;
 
 set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
 
-do $$
+do $
+declare
+  v_updated_rows integer;
 begin
   if exists (select 1 from public.proxy_domain_rules) then
     raise exception 'A different user can read another user''s domain rules';
   end if;
 
-  if exists (
-    update public.proxy_domain_rules
-    set include_subdomains = true
-    where host = 'example.com'
-    returning 1
-  ) then
+  update public.proxy_domain_rules
+  set include_subdomains = true
+  where host = 'example.com';
+  get diagnostics v_updated_rows = row_count;
+
+  if v_updated_rows <> 0 then
     raise exception 'A different user updated another user''s domain rule';
   end if;
 end
-$$;
+$;
 
 reset role;
