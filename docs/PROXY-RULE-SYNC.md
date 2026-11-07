@@ -87,3 +87,10 @@ The conflict rule is intentionally conservative: a stale offline edit does not o
 6. Pending: manually verify two Edge profiles/devices with the same account, then test a different account and offline/reconnect behavior.
 
 Until those gates pass, sign-in must not upload or download domain rules.
+
+
+## Extension integration status
+
+The sync engine is integrated behind the extension service-worker message boundary. Authenticated PostgREST requests use the current user's Supabase access token, refresh it when near expiry, retry once after an unauthorized response, and never expose bearer tokens to the popup. Local rule edits are converted into per-host upsert/tombstone operations; the local proxy endpoint, scheme, port, browser mode, tab URLs, and page contents are excluded.
+
+**Production rollout gate:** the extension currently declares the cloud-sync backend unavailable. The migration and isolated RLS tests exist on this feature branch only; the production Supabase database has not been migrated. The account screen therefore reports cloud sync as unavailable and does not send or receive domain rules. Do not change the gate or apply the migration until the production rollout is explicitly approved and separately verified.

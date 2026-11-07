@@ -41,9 +41,9 @@ export function createSupabaseAuthService({
   const baseUrl = supabaseUrl.replace(/\/+$/, "");
   let refreshInFlight = null;
 
-  async function request(path, { method = "GET", body, accessToken } = {}) {
-    const headers = { apikey: publishableKey };
-    if (body !== undefined) headers["Content-Type"] = "application/json";
+  async function request(path, { method = "GET", body, accessToken, headers: extraHeaders = {} } = {}) {
+    const headers = { ...extraHeaders, apikey: publishableKey };
+    if (body !== undefined && !headers["Content-Type"]) headers["Content-Type"] = "application/json";
     if (accessToken) headers.Authorization = `Bearer ${accessToken}`;
 
     let response;
@@ -169,6 +169,24 @@ export function createSupabaseAuthService({
     }
   }
 
+  async function requestWithSession(path, options = {}) {
+    let session = await readStoredSession();
+    if (!session) throw new Error("请先登录 ALAXEE 账户，再同步域名规则。");
+
+    if (!Number.isFinite(Number(session.expires_at)) ||
+        Number(session.expires_at) <= now() + 60_000) {
+      session = await refreshSession(session);
+    }
+
+    try {
+      return await request(path, { ...options, accessToken: session.access_token });
+    } catch (error) {
+      if (error.status !== 401) throw error;
+      session = await refreshSession(session);
+      return request(path, { ...options, accessToken: session.access_token });
+    }
+  }
+
   async function signOut() {
     const session = await readStoredSession();
     let remoteRevoked = true;
@@ -186,5 +204,5 @@ export function createSupabaseAuthService({
     return { remoteRevoked };
   }
 
-  return Object.freeze({ signInWithPassword, getSession, signOut });
+  return Object.freeze({ signInWithPassword, getSession, requestWithSession, signOut });
 }

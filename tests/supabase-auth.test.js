@@ -140,3 +140,78 @@ test("getSession returns only safe user fields and not bearer credentials", asyn
   const result = await service.getSession();
   assert.deepEqual(result, { user: { id: "user-4", email: "safe@example.com", emailConfirmedAt: null } });
 });
+
+
+test("authenticated REST requests carry the user's access token and custom PostgREST headers", async () => {
+  const initial = {
+    access_token: "access-rest-1",
+    refresh_token: "refresh-rest-1",
+    expires_at: 1_900_000_000_000
+  };
+  const { service, calls } = createHarness(async (url, init) => {
+    assert.match(url, /\\/rest\\/v1\\/proxy_domain_rules/);
+    assert.equal(init.headers.apikey, "sb_publishable_unit_test");
+    assert.equal(init.headers.Authorization, "Bearer access-rest-1");
+    assert.equal(init.headers.Prefer, "return=representation");
+    return response(200, [{ host: "example.com" }]);
+  }, initial);
+
+  const rows = await service.requestWithSession("/rest/v1/proxy_domain_rules?select=host", {
+    method: "GET",
+    headers: { Prefer: "return=representation" }
+  });
+  assert.deepEqual(rows, [{ host: "example.com" }]);
+  assert.equal(calls.length, 1);
+});
+
+test("authenticated REST requests refresh an expired session before sending the query", async () => {
+  const initial = {
+    access_token: "expired-rest-access",
+    refresh_token: "rest-old-refresh",
+    expires_at: 1_700_000_000_000
+  };
+  const { service, calls, values } = createHarness(async (url, init) => {
+    if (url.includes("grant_type=refresh_token")) {
+      assert.deepEqual(JSON.parse(init.body), { refresh_token: "rest-old-refresh" });
+      return response(200, {
+        access_token: "rest-new-access",
+        refresh_token: "rest-new-refresh",
+        expires_in: 3600
+      });
+    }
+    assert.match(url, /\\/rest\\/v1\\/proxy_domain_rules/);
+    assert.equal(init.headers.Authorization, "Bearer rest-new-access");
+    return response(200, []);
+  }, initial);
+
+  const rows = await service.requestWithSession("/rest/v1/proxy_domain_rules?select=host");
+  assert.deepEqual(rows, []);
+  assert.equal(calls.length, 2);
+  assert.equal(values.get(AUTH_SESSION_STORAGE_KEY).refresh_token, "rest-new-refresh");
+});
+
+test("authenticated REST retries once with a rotated token after an unauthorized response", async () => {
+  const initial = {
+    access_token: "stale-rest-access",
+    refresh_token: "rest-refresh",
+    expires_at: 1_900_000_000_000
+  };
+  const { service, calls } = createHarness(async (url, init) => {
+    if (url.includes("grant_type=refresh_token")) {
+      return response(200, {
+        access_token: "rotated-rest-access",
+        refresh_token: "rotated-rest-refresh",
+        expires_in: 3600
+      });
+    }
+    if (init.headers.Authorization === "Bearer stale-rest-access") {
+      return response(401, { message: "JWT expired" });
+    }
+    assert.equal(init.headers.Authorization, "Bearer rotated-rest-access");
+    return response(200, [{ host: "retried.example" }]);
+  }, initial);
+
+  const rows = await service.requestWithSession("/rest/v1/proxy_domain_rules");
+  assert.deepEqual(rows, [{ host: "retried.example" }]);
+  assert.equal(calls.length, 3);
+});

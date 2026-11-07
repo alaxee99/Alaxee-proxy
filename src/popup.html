@@ -200,9 +200,11 @@
           <button id="accountSignOutButton" class="secondary-button account-signout" type="button">退出此设备上的 ALAXEE 账号</button>
         </div>
         <div class="account-sync-note">
-          <strong>域名规则云同步 · 下一阶段</strong>
-          <p>此版本先接入统一身份验证，不会上传或下载白名单、黑名单。下一阶段再实现多设备规则同步。</p>
-          <p>Clash 地址、端口、协议和浏览器代理模式始终只保存在本机，不会上传到账号。</p>
+          <strong>域名规则云同步</strong>
+          <p id="accountSyncDescription">登录 ALAXEE 账号后可查看云同步状态。</p>
+          <p id="accountSyncStatus" role="status" aria-live="polite">尚未启用。</p>
+          <button id="accountSyncButton" class="secondary-button account-sync-action" type="button" disabled>请先登录</button>
+          <p>Clash 地址、端口、协议、浏览器代理模式和标签页网址始终只保存在本机，不会上传。</p>
         </div>
         <p id="accountFeedback" class="account-feedback" role="status" aria-live="polite"></p>
       </section>

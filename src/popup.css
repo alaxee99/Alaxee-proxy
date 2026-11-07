@@ -481,3 +481,6 @@ html.full-page #accountView { max-width: 760px; }
 html.full-page .account-panel { padding: 22px; }
 html.full-page .account-description, html.full-page .account-footnote, html.full-page .account-sync-note p { font-size: 12px; }
 html.full-page .account-login-form .field input { min-height: 44px; font-size: 13px; }
+
+.account-sync-action { width: 100%; min-height: 36px; margin-top: 4px; }
+.account-sync-action:disabled { cursor: not-allowed; opacity: .55; }
