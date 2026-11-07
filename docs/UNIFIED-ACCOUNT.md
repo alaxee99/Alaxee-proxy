@@ -11,7 +11,7 @@ A shared account means the same ALAXEE user ID is recognized across products. Ea
 | Product | Identity integration | Product data sync |
 | --- | --- | --- |
 | ALAXEE Start | Identity management UI is merged. Social provider flows still depend on Supabase provider configuration and end-to-end verification. | Existing Start data remains in current user-scoped tables. |
-| ALAXEE Proxy | Email/password sign-in against the shared Auth project is implemented on the feature branch; automated CI passed, but real Edge sign-in acceptance remains. | Not enabled. The dedicated rule-sync data contract is documented in `docs/PROXY-RULE-SYNC.md`; the database migration and sync engine are still pending. |
+| ALAXEE Proxy | Email/password sign-in against the shared Auth project is implemented on the feature branch; real Edge sign-in acceptance remains. | The dedicated migration and RLS tests pass in disposable PostgreSQL CI; an isolated sync engine/outbox module is implemented and under CI. It is not integrated into the service worker, deployed to Supabase, or enabled for network traffic. |
 | ALAXEE SteamHub | Not integrated yet. | After real Steam injection acceptance and translation-core implementation, decide which user-owned dictionaries/preferences merit sync. |
 
 ## Proxy data boundary
