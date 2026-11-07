@@ -1,6 +1,6 @@
 # Proxy domain-rule cloud sync contract
 
-**Status: design agreed for implementation; schema is not deployed and synchronization is not active.**
+**Status: the migration and RLS behavior are verified in a disposable PostgreSQL CI database. An isolated background sync engine and outbox module are implemented on the feature branch, but the service worker does not call it yet. The live schema is not deployed and no cloud rule traffic is active.**
 
 This contract covers only the direct-connection whitelist and force-proxy blacklist. It does not sync proxy endpoints or browser proxy mode.
 
