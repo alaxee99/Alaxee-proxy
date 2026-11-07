@@ -11,14 +11,14 @@ A shared account means the same ALAXEE user ID is recognized across products. Ea
 | Product | Identity integration | Product data sync |
 | --- | --- | --- |
 | ALAXEE Start | Identity management UI is merged. Social provider flows still depend on Supabase provider configuration and end-to-end verification. | Existing Start data remains in current user-scoped tables. |
-| ALAXEE Proxy | Email/password sign-in against the shared Auth project is being added in this phase. | Not enabled yet. Next phase: user-scoped whitelist/blacklist sync only. |
+| ALAXEE Proxy | Email/password sign-in against the shared Auth project is implemented on the feature branch; automated CI passed, but real Edge sign-in acceptance remains. | Not enabled. The dedicated rule-sync data contract is documented in `docs/PROXY-RULE-SYNC.md`; the database migration and sync engine are still pending. |
 | ALAXEE SteamHub | Not integrated yet. | After real Steam injection acceptance and translation-core implementation, decide which user-owned dictionaries/preferences merit sync. |
 
 ## Proxy data boundary
 
 Keep these fields on the device: proxy host, port, scheme, browser proxy mode, and device-specific connection state.
 
-The planned cloud dataset is limited to domain whitelist and force-proxy blacklist entries, including subdomain matching options. It must be scoped to `auth.uid()`, protected by RLS, and designed for safe multi-device conflict handling. No database or RLS change is included in the account-login phase.
+The cloud dataset is limited to domain whitelist and force-proxy blacklist entries, including subdomain matching options. The implementation contract uses one row per `(user_id, host)` so a host cannot be both allowlisted and force-proxied, with tombstones and server revisions for safe multi-device conflict handling. The dedicated table is `public.proxy_domain_rules`; do not reuse Start's `public.user_settings`. The schema migration is not yet created or deployed, and sign-in still performs no rule upload/download.
 
 ## Security
 
@@ -31,4 +31,4 @@ The planned cloud dataset is limited to domain whitelist and force-proxy blackli
 
 ## Next implementation unit
 
-After account login is verified on the feature branch, implement the Proxy rules data model and migration as a separately reviewed change. Apply any schema/RLS change to the live Supabase project only after explicit approval. Then add conflict-safe synchronization, visible sync status, and tests for cross-user isolation, concurrent edits, offline behavior, and local-only endpoint preservation.
+Next: create the `public.proxy_domain_rules` migration using the Supabase CLI, then validate the schema/RLS locally before implementing the background-only sync service and durable outbox. Apply any schema/RLS change to the live Supabase project only after explicit approval. Follow with visible sync status and two-device tests for cross-user isolation, concurrent edits, offline behavior, and local-only endpoint preservation.
