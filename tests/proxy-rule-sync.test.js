@@ -59,7 +59,7 @@ function createHarness({
 
     if (method === "GET") {
       let rows = serverRows.filter((row) => row.user_id === USER_A);
-      if (params.has("host")) rows = rows.filter((row) => row.host === params.get("host").slice(4));
+      if (params.has("host")) rows = rows.filter((row) => row.host === params.get("host").slice(3));
       const offset = Number(params.get("offset") || 0);
       const limit = Number(params.get("limit") || 1000);
       return rows.slice(offset, offset + limit).map((row) => structuredClone(row));
@@ -78,8 +78,8 @@ function createHarness({
     }
 
     if (method === "PATCH") {
-      const host = params.get("host").slice(4);
-      const revision = Number(params.get("revision").slice(4));
+      const host = params.get("host").slice(3);
+      const revision = Number(params.get("revision").slice(3));
       const row = serverRows.find((item) => item.user_id === USER_A && item.host === host);
       if (!row || row.revision !== revision) return [];
       Object.assign(row, options.body, { revision: row.revision + 1, updated_at: "2026-11-07T01:00:00.000Z" });
