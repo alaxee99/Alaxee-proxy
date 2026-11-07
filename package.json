@@ -6,7 +6,7 @@
   "description": "A lightweight Manifest V3 browser proxy switcher for Clash/Mihomo.",
   "scripts": {
     "test": "node --test",
-    "check": "node --check background.js && node --check src/supabase-auth.js && node --check src/popup.js && node --check src/core.js && node --check settings.js && node --check scripts/publish-edge-addons.mjs && node --check tests/core.test.js && node tests/package.test.js",
+    "check": "node --check background.js && node --check src/supabase-auth.js && node --check src/popup.js && node --check src/core.js && node --check src/proxy-rule-sync.js && node --check tests/proxy-rule-sync.test.js && node --check settings.js && node --check scripts/publish-edge-addons.mjs && node --check tests/core.test.js && node tests/package.test.js",
     "package:extension": "python scripts/package-extension.py"
   },
   "engines": {
