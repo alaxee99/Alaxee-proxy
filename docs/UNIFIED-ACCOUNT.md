@@ -11,14 +11,14 @@ A shared account means the same ALAXEE user ID is recognized across products. Ea
 | Product | Identity integration | Product data sync |
 | --- | --- | --- |
 | ALAXEE Start | Identity management UI is merged. Social provider flows still depend on Supabase provider configuration and end-to-end verification. | Existing Start data remains in current user-scoped tables. |
-| ALAXEE Proxy | Email/password sign-in against the shared Auth project is implemented on the feature branch; real Edge sign-in acceptance remains. | The dedicated migration and RLS tests pass in disposable PostgreSQL CI; an isolated sync engine/outbox module is implemented and under CI. It is not integrated into the service worker, deployed to Supabase, or enabled for network traffic. |
+| ALAXEE Proxy | Email/password sign-in against the shared Auth project is implemented on the feature branch; real Edge sign-in acceptance remains. | The dedicated migration/RLS tests pass in disposable PostgreSQL CI. The sync engine/outbox is integrated with the background service worker, but its production-backend gate is deliberately disabled; the live schema is not deployed and no rule traffic is active. |
 | ALAXEE SteamHub | Not integrated yet. | After real Steam injection acceptance and translation-core implementation, decide which user-owned dictionaries/preferences merit sync. |
 
 ## Proxy data boundary
 
 Keep these fields on the device: proxy host, port, scheme, browser proxy mode, and device-specific connection state.
 
-The cloud dataset is limited to domain whitelist and force-proxy blacklist entries, including subdomain matching options. The implementation contract uses one row per `(user_id, host)` so a host cannot be both allowlisted and force-proxied, with tombstones and server revisions for safe multi-device conflict handling. The dedicated table is `public.proxy_domain_rules`; do not reuse Start's `public.user_settings`. The migration file exists and passes disposable PostgreSQL/RLS CI tests, but it is not deployed. The isolated sync engine/outbox module is present on the feature branch; the service worker is not integrated and sign-in still performs no rule upload/download.
+The cloud dataset is limited to domain whitelist and force-proxy blacklist entries, including subdomain matching options. The implementation contract uses one row per `(user_id, host)` so a host cannot be both allowlisted and force-proxied, with tombstones and server revisions for safe multi-device conflict handling. The dedicated table is `public.proxy_domain_rules`; do not reuse Start's `public.user_settings`. The migration file exists and passes disposable PostgreSQL/RLS CI tests, but it is not deployed. The sync engine/outbox is connected to the trusted service-worker message boundary on the feature branch; the production-backend gate remains false, so sign-in still performs no rule upload/download.
 
 ## Security
 
@@ -31,4 +31,6 @@ The cloud dataset is limited to domain whitelist and force-proxy blacklist entri
 
 ## Next implementation unit
 
-Next: integrate the isolated sync engine with the background service worker through a trusted-context-only Supabase REST adapter. Add visible sync status and update the privacy notice before enabling remote rule traffic. Apply the existing migration to the live Supabase project only after explicit approval. Then verify two Edge profiles/devices for cross-user isolation, concurrent edits, offline behavior, account switching, and local-only endpoint preservation.
+Next: complete manual Edge acceptance on the feature branch: proxy mode switching, current-site whitelist/blacklist rules, subdomain matching and priority, optional per-tab status permission, persistence after browser restart, interaction with another proxy extension, and ALAXEE account sign-in/session refresh/sign-out.
+
+Cloud rule sync remains deliberately disabled. A live Supabase migration and two-profile/device sync acceptance are a separate rollout that requires explicit approval; do not enable the backend gate as part of this manual test.

@@ -1,6 +1,6 @@
 # Proxy domain-rule cloud sync contract
 
-**Status: the migration and RLS behavior are verified in a disposable PostgreSQL CI database. An isolated background sync engine and outbox module are implemented on the feature branch, but the service worker does not call it yet. The live schema is not deployed and no cloud rule traffic is active.**
+**Status: the migration and RLS behavior are verified in a disposable PostgreSQL CI database. The background sync engine, durable outbox, and service-worker message integration are implemented on the feature branch. The production-backend gate remains disabled, the live schema is not deployed, and no cloud rule traffic is active.**
 
 This contract covers only the direct-connection whitelist and force-proxy blacklist. It does not sync proxy endpoints or browser proxy mode.
 
@@ -79,12 +79,12 @@ The conflict rule is intentionally conservative: a stale offline edit does not o
 
 ## Rollout gates
 
-1. Complete: create and review the migration file in this repository.
-2. Complete in CI: test schema, RLS ownership, insert/update restrictions, tombstones, and timestamp/revision trigger in disposable PostgreSQL.
-3. In progress: implement and test the background-only sync engine and durable outbox; the isolated module is present, while the service-worker adapter/integration remains pending.
-4. Pending: update the privacy notice and add visible sync status before enabling remote rule traffic.
-5. Pending explicit approval: apply the migration to the live Supabase project.
-6. Pending: manually verify two Edge profiles/devices with the same account, then test a different account and offline/reconnect behavior.
+1. Complete: create and review the dedicated migration file in this repository.
+2. Complete in CI: verify schema, RLS ownership, insert/update restrictions, tombstones, and server revision/timestamp behavior in disposable PostgreSQL.
+3. Complete on the feature branch: implement the sync engine/outbox and connect it to the trusted background service-worker message boundary; unit tests cover bootstrap, pull, recovery, conflict handling, and offline outbox behavior.
+4. Complete on the feature branch: show the cloud-sync backend-unavailable state in the account UI and document the data boundary in the privacy notice.
+5. Pending explicit approval: apply the migration to the live Supabase project. The backend gate must remain disabled until that rollout is approved and verified.
+6. Pending after the live migration is approved: manually verify two Edge profiles/devices, account isolation, concurrent edits, and offline/reconnect behavior.
 
 Until those gates pass, sign-in must not upload or download domain rules.
 

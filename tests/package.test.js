@@ -192,3 +192,15 @@ test("unified account auth is limited to the shared Supabase project host", asyn
   assert.match(worker, /ALAXEE_AUTH_SIGN_IN/);
   assert.match(worker, /TRUSTED_CONTEXTS/);
 });
+
+
+test("Edge package includes every background service-worker module", async () => {
+  const packager = await readFile(path.join(root, "scripts/package-extension.py"), "utf8");
+  for (const modulePath of [
+    "src/supabase-auth.js",
+    "src/supabase-config.js",
+    "src/proxy-rule-sync.js"
+  ]) {
+    assert.ok(packager.includes(`"${modulePath}"`), `store package omits runtime module: ${modulePath}`);
+  }
+});
