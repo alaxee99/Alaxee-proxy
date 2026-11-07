@@ -31,4 +31,4 @@ The cloud dataset is limited to domain whitelist and force-proxy blacklist entri
 
 ## Next implementation unit
 
-Next: create the `public.proxy_domain_rules` migration using the Supabase CLI, then validate the schema/RLS locally before implementing the background-only sync service and durable outbox. Apply any schema/RLS change to the live Supabase project only after explicit approval. Follow with visible sync status and two-device tests for cross-user isolation, concurrent edits, offline behavior, and local-only endpoint preservation.
+Next: integrate the isolated sync engine with the background service worker through a trusted-context-only Supabase REST adapter. Add visible sync status and update the privacy notice before enabling remote rule traffic. Apply the existing migration to the live Supabase project only after explicit approval. Then verify two Edge profiles/devices for cross-user isolation, concurrent edits, offline behavior, account switching, and local-only endpoint preservation.
