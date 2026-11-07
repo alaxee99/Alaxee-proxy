@@ -167,7 +167,7 @@ $$;
 
 set request.jwt.claim.sub = '22222222-2222-4222-8222-222222222222';
 
-do $
+do $$
 declare
   v_updated_rows integer;
 begin
@@ -184,6 +184,6 @@ begin
     raise exception 'A different user updated another user''s domain rule';
   end if;
 end
-$;
+$$;
 
 reset role;
