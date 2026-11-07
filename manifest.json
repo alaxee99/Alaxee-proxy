@@ -2,12 +2,13 @@
   "manifest_version": 3,
   "name": "Alaxee Proxy",
   "short_name": "Alaxee Proxy",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "description": "A lightweight Edge proxy controller with direct whitelist and force-proxy domain rules.",
   "permissions": [
     "proxy",
     "storage",
-    "activeTab"
+    "activeTab",
+    "alarms"
   ],
   "action": {
     "default_title": "Alaxee Proxy",
@@ -33,5 +34,8 @@
   },
   "optional_permissions": [
     "tabs"
+  ],
+  "host_permissions": [
+    "https://xcvxpallbauhpgigyxeh.supabase.co/*"
   ]
 }

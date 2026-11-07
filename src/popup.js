@@ -52,6 +52,19 @@ const ui = {
   totalRuleCount: $("totalRuleCount"),
   overviewView: $("overviewView"),
   rulesView: $("rulesView"),
+  accountView: $("accountView"),
+  accountSignedOut: $("accountSignedOut"),
+  accountSignedIn: $("accountSignedIn"),
+  accountLoginForm: $("accountLoginForm"),
+  accountEmailInput: $("accountEmailInput"),
+  accountPasswordInput: $("accountPasswordInput"),
+  accountLoginButton: $("accountLoginButton"),
+  accountUserEmail: $("accountUserEmail"),
+  accountSignOutButton: $("accountSignOutButton"),
+  accountFeedback: $("accountFeedback"),
+  accountSyncDescription: $("accountSyncDescription"),
+  accountSyncStatus: $("accountSyncStatus"),
+  accountSyncButton: $("accountSyncButton"),
   viewButtons: [...document.querySelectorAll("[data-view]")],
   whitelistTab: $("whitelistTab"),
   blacklistTab: $("blacklistTab"),
@@ -73,6 +86,7 @@ let currentTabUrl = "";
 let proxyStateSnapshot = null;
 let activeMode = "clash";
 let activeView = "overview";
+let accountUser = null;
 let activeRuleType = "whitelist";
 let noticeTimer = null;
 
@@ -96,6 +110,202 @@ function chromeCall(target, method, ...args) {
       reject(error);
     }
   });
+}
+
+function sendAccountMessage(message) {
+  return new Promise((resolve, reject) => {
+    chrome.runtime.sendMessage(message, (response) => {
+      const error = chrome.runtime.lastError;
+      if (error) reject(new Error(error.message));
+      else resolve(response ?? { ok: false, error: "账户服务没有返回结果。" });
+    });
+  });
+}
+
+function setAccountFeedback(message = "", kind = "") {
+  ui.accountFeedback.textContent = message;
+  ui.accountFeedback.className = kind ? `account-feedback account-feedback-${kind}` : "account-feedback";
+}
+
+function renderAccountUser(user) {
+  accountUser = user ?? null;
+  ui.accountSignedOut.hidden = Boolean(accountUser);
+  ui.accountSignedIn.hidden = !accountUser;
+  ui.accountUserEmail.textContent = accountUser?.email || "ALAXEE 账户已连接";
+}
+
+async function loadAccount() {
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_AUTH_GET_SESSION" });
+    if (!response.ok) throw new Error(response.error || "无法读取账户状态。");
+    renderAccountUser(response.user);
+    setAccountFeedback(response.user ? "统一账号已连接。" : "尚未登录。代理功能仍可在本机独立使用。", "neutral");
+    await refreshRuleSyncUi();
+  } catch (error) {
+    renderAccountUser(null);
+    setAccountFeedback(error.message || "暂时无法连接 ALAXEE 账户服务。", "error");
+    await refreshRuleSyncUi();
+  }
+}
+
+function readableAccountError(error) {
+  const message = String(error?.message || error || "");
+  const normalized = message.toLowerCase();
+  if (normalized.includes("invalid login credentials") || normalized.includes("invalid_credentials")) {
+    return "邮箱或密码不正确，请确认这是 ALAXEE Start 中已注册的邮箱登录方式。";
+  }
+  if (normalized.includes("email not confirmed")) return "邮箱尚未验证，请先在 ALAXEE Start 完成邮箱验证。";
+  if (normalized.includes("无法连接") || normalized.includes("failed to fetch")) {
+    return "无法连接统一账号服务，请检查网络或代理后重试。";
+  }
+  return message || "登录失败，请稍后重试。";
+}
+
+async function submitAccountLogin(event) {
+  event.preventDefault();
+  const email = ui.accountEmailInput.value.trim();
+  const password = ui.accountPasswordInput.value;
+  if (!email || !password) return;
+  ui.accountLoginButton.disabled = true;
+  setAccountFeedback("正在验证 ALAXEE 账户…", "neutral");
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_AUTH_SIGN_IN", email, password });
+    if (!response.ok || !response.user) throw new Error(response.error || "登录失败。");
+    renderAccountUser(response.user);
+    ui.accountPasswordInput.value = "";
+    setAccountFeedback("登录成功。此设备已连接到你的 ALAXEE 统一账号。", "success");
+    await refreshRuleSyncUi();
+  } catch (error) {
+    setAccountFeedback(readableAccountError(error), "error");
+  } finally {
+    ui.accountLoginButton.disabled = false;
+  }
+}
+
+async function signOutAccount() {
+  ui.accountSignOutButton.disabled = true;
+  setAccountFeedback("正在退出…", "neutral");
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_AUTH_SIGN_OUT" });
+    if (!response.ok) throw new Error(response.error || "退出失败。");
+    renderAccountUser(null);
+    await refreshRuleSyncUi();
+    ui.accountPasswordInput.value = "";
+    setAccountFeedback(
+      response.remoteRevoked ? "已退出此设备上的 ALAXEE 账号。" : "本机已退出；远端撤销未能确认，请在账户安全设置中检查活动会话。",
+      response.remoteRevoked ? "success" : "error"
+    );
+  } catch (error) {
+    setAccountFeedback(error.message || "退出失败。", "error");
+  } finally {
+    ui.accountSignOutButton.disabled = false;
+  }
+}
+
+async function refreshRuleSyncUi() {
+  if (!accountUser) {
+    ui.accountSyncDescription.textContent = "登录 ALAXEE 账号后可查看域名规则云同步状态。";
+    ui.accountSyncStatus.textContent = "未登录，不会同步域名规则。";
+    ui.accountSyncButton.disabled = true;
+    ui.accountSyncButton.textContent = "请先登录";
+    ui.accountSyncButton.dataset.enabled = "false";
+    return;
+  }
+
+  try {
+    const response = await sendAccountMessage({ type: "ALAXEE_PROXY_RULE_SYNC_STATUS" });
+    if (!response.ok) throw new Error(response.error || "无法读取云同步状态。");
+    const status = response.status ?? {};
+    ui.accountSyncButton.dataset.enabled = String(Boolean(status.enabled));
+
+    if (status.accountBindingConflict) {
+      ui.accountSyncDescription.textContent = "此 Edge 配置曾绑定另一个 ALAXEE 账号。为防止跨账号传输规则，云同步已暂停。";
+      ui.accountSyncStatus.textContent = "账号隔离保护已触发。";
+      ui.accountSyncButton.disabled = true;
+      ui.accountSyncButton.textContent = "云同步已暂停";
+      return;
+    }
+
+    if (!status.backendReady) {
+      ui.accountSyncDescription.textContent = "云端规则表尚未部署到生产环境。当前白名单和黑名单仍只保存在本机，不会上传或下载。";
+      ui.accountSyncStatus.textContent = "等待云端存储上线；Clash 地址、端口和代理模式始终只保存在本机。";
+      ui.accountSyncButton.disabled = true;
+      ui.accountSyncButton.textContent = "等待云端存储开放";
+      return;
+    }
+
+    if (status.enabled) {
+      ui.accountSyncDescription.textContent = "云同步已启用。此账号的白名单和黑名单会在设备间同步；代理端点和模式不会同步。";
+      const details = [`待上传变更：${status.pendingCount ?? 0} 条。`];
+      if (Array.isArray(status.conflicts) && status.conflicts.length) {
+        details.push(`检测到 ${status.conflicts.length} 次并发修改，已采用云端版本。`);
+      }
+      if (status.lastSyncedAt) details.push(`上次同步：${new Date(status.lastSyncedAt).toLocaleString()}。`);
+      if (status.lastError) details.push(`上次同步未完成：${status.lastError}`);
+      ui.accountSyncStatus.textContent = details.join(" ");
+      ui.accountSyncButton.disabled = false;
+      ui.accountSyncButton.textContent = "立即同步";
+    } else {
+      ui.accountSyncDescription.textContent = "启用后，域名白名单、黑名单及删除标记会保存在此 ALAXEE 账号下，供其他设备同步。";
+      ui.accountSyncStatus.textContent = "首次同步会以云端规则为准处理同名冲突，本机独有规则会保留。";
+      ui.accountSyncButton.disabled = false;
+      ui.accountSyncButton.textContent = "启用域名规则云同步";
+    }
+  } catch (error) {
+    ui.accountSyncDescription.textContent = "暂时无法读取云同步状态。";
+    ui.accountSyncStatus.textContent = error.message || "云同步状态读取失败。";
+    ui.accountSyncButton.disabled = true;
+    ui.accountSyncButton.textContent = "状态不可用";
+  }
+}
+
+async function handleRuleSyncAction() {
+  ui.accountSyncButton.disabled = true;
+  const alreadyEnabled = ui.accountSyncButton.dataset.enabled === "true";
+  ui.accountSyncStatus.textContent = alreadyEnabled ? "正在同步域名规则…" : "正在启用并初始化云同步…";
+  try {
+    const response = await sendAccountMessage({
+      type: alreadyEnabled ? "ALAXEE_PROXY_RULE_SYNC_NOW" : "ALAXEE_PROXY_RULE_SYNC_ENABLE"
+    });
+    if (!response.ok) throw new Error(response.error || "域名规则同步失败。");
+    await refreshRuleSyncUi();
+    setAccountFeedback(alreadyEnabled ? "域名规则同步完成。" : "域名规则云同步已启用。", "success");
+  } catch (error) {
+    ui.accountSyncStatus.textContent = error.message || "域名规则同步失败。";
+    setAccountFeedback(error.message || "域名规则同步失败。", "error");
+  } finally {
+    await refreshRuleSyncUi();
+  }
+}
+
+function buildRuleSyncOperations(previousSettings, nextSettings) {
+  const toMap = (value) => {
+    const map = new Map();
+    for (const entry of normalizeWhitelist(value?.whitelist)) {
+      map.set(entry.host, { host: entry.host, ruleType: "whitelist", includeSubdomains: entry.includeSubdomains });
+    }
+    for (const entry of normalizeBlacklist(value?.blacklist)) {
+      map.set(entry.host, { host: entry.host, ruleType: "blacklist", includeSubdomains: entry.includeSubdomains });
+    }
+    return map;
+  };
+  const previous = toMap(previousSettings);
+  const next = toMap(nextSettings);
+  const operations = [];
+  for (const host of new Set([...previous.keys(), ...next.keys()])) {
+    const before = previous.get(host);
+    const after = next.get(host);
+    if (before && after && before.ruleType === after.ruleType &&
+        before.includeSubdomains === after.includeSubdomains) continue;
+    const selected = after ?? before;
+    operations.push({
+      host,
+      ruleType: selected.ruleType,
+      includeSubdomains: selected.includeSubdomains,
+      isDeleted: !after
+    });
+  }
+  return operations;
 }
 
 function getRuleList(type) {
@@ -131,14 +341,33 @@ async function loadSettings() {
 }
 
 async function saveSettings(nextSettings) {
-  settings = {
+  const previousSettings = settings;
+  const next = {
     ...settings,
     ...nextSettings,
     whitelist: normalizeWhitelist(nextSettings.whitelist ?? settings.whitelist),
     blacklist: normalizeBlacklist(nextSettings.blacklist ?? settings.blacklist)
   };
+  const syncOperations = buildRuleSyncOperations(previousSettings, next);
+  settings = next;
   await chromeCall(chrome.storage.local, "set", { settings });
   syncRuleCounts();
+
+  if (syncOperations.length && accountUser) {
+    try {
+      const response = await sendAccountMessage({
+        type: "ALAXEE_PROXY_RULE_SYNC_ENQUEUE",
+        operations: syncOperations
+      });
+      if (!response.ok) {
+        sendNotice(`规则已保存在本机，但云同步队列未更新：${response.error || "未知错误"}`, "warning");
+      } else if (response.status?.pendingCount > 0) {
+        ui.accountSyncStatus.textContent = `有 ${response.status.pendingCount} 条规则等待云端同步。`;
+      }
+    } catch (error) {
+      sendNotice(`规则已保存在本机，但云同步队列未更新：${error.message}`, "warning");
+    }
+  }
 }
 
 async function getCurrentTab() {
@@ -247,14 +476,16 @@ function renderModes() {
 }
 
 function switchView(view) {
-  activeView = view === "rules" ? "rules" : "overview";
+  activeView = ["rules", "account"].includes(view) ? view : "overview";
   ui.overviewView.hidden = activeView !== "overview";
   ui.rulesView.hidden = activeView !== "rules";
+  ui.accountView.hidden = activeView !== "account";
   ui.viewButtons.forEach((button) => {
     if (button.dataset.view === activeView) button.setAttribute("aria-current", "page");
     else button.removeAttribute("aria-current");
   });
   if (activeView === "rules") renderRules();
+  if (activeView === "account") void loadAccount();
 }
 
 function switchRuleType(type) {
@@ -489,6 +720,7 @@ function renderStatusPermission() {
 async function initialize() {
   try {
     await loadSettings();
+    await loadAccount();
     switchRuleType("whitelist");
     renderStatusPermission();
     renderModes();
@@ -518,6 +750,9 @@ async function initialize() {
   ui.viewButtons.forEach((button) => {
     button.addEventListener("click", () => switchView(button.dataset.view));
   });
+  ui.accountLoginForm.addEventListener("submit", submitAccountLogin);
+  ui.accountSignOutButton.addEventListener("click", () => { void signOutAccount(); });
+  ui.accountSyncButton.addEventListener("click", () => { void handleRuleSyncAction(); });
   ui.whitelistTab.addEventListener("click", () => switchRuleType("whitelist"));
   ui.blacklistTab.addEventListener("click", () => switchRuleType("blacklist"));
   ui.ruleForm.addEventListener("submit", (event) => {

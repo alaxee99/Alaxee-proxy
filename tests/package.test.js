@@ -178,10 +178,29 @@ test("full settings preserve both direct and force-proxy rule lists through the 
   assert.ok(script.includes("normalizeWhitelist(raw.whitelist)"));
 });
 
-test("proxy domain rules remain local-only and add no network permissions", () => {
+test("unified account auth is limited to the shared Supabase project host", async () => {
   assert.ok(manifest.permissions.includes("proxy"));
   assert.ok(manifest.permissions.includes("storage"));
+  assert.ok(manifest.permissions.includes("alarms"));
   assert.ok(manifest.optional_permissions.includes("tabs"));
+  assert.deepEqual(manifest.host_permissions, ["https://xcvxpallbauhpgigyxeh.supabase.co/*"]);
   assert.ok(!manifest.permissions.includes("webRequest"));
   assert.ok(!manifest.permissions.includes("identity"));
+  assertLocalFile("src/supabase-auth.js", "Supabase auth module");
+  assertLocalFile("src/supabase-config.js", "Supabase browser configuration");
+  const worker = await readFile(path.join(root, "background.js"), "utf8");
+  assert.match(worker, /ALAXEE_AUTH_SIGN_IN/);
+  assert.match(worker, /TRUSTED_CONTEXTS/);
+});
+
+
+test("Edge package includes every background service-worker module", async () => {
+  const packager = await readFile(path.join(root, "scripts/package-extension.py"), "utf8");
+  for (const modulePath of [
+    "src/supabase-auth.js",
+    "src/supabase-config.js",
+    "src/proxy-rule-sync.js"
+  ]) {
+    assert.ok(packager.includes(`"${modulePath}"`), `store package omits runtime module: ${modulePath}`);
+  }
 });
