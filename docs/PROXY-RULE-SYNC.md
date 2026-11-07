@@ -79,11 +79,11 @@ The conflict rule is intentionally conservative: a stale offline edit does not o
 
 ## Rollout gates
 
-1. Create and review the migration file in this repository.
-2. Test schema, RLS ownership, insert/update restrictions, tombstones, and timestamp/revision trigger in a disposable local database.
-3. Implement the background-only sync service and durable outbox with mocked REST/storage tests.
-4. Update the privacy notice and visible sync status before enabling remote rule traffic.
-5. Apply the migration to the live Supabase project only after explicit approval.
-6. Manually verify two Edge profiles/devices with the same account, then test a different account and offline/reconnect behavior.
+1. Complete: create and review the migration file in this repository.
+2. Complete in CI: test schema, RLS ownership, insert/update restrictions, tombstones, and timestamp/revision trigger in disposable PostgreSQL.
+3. In progress: implement and test the background-only sync engine and durable outbox; the isolated module is present, while the service-worker adapter/integration remains pending.
+4. Pending: update the privacy notice and add visible sync status before enabling remote rule traffic.
+5. Pending explicit approval: apply the migration to the live Supabase project.
+6. Pending: manually verify two Edge profiles/devices with the same account, then test a different account and offline/reconnect behavior.
 
 Until those gates pass, sign-in must not upload or download domain rules.
