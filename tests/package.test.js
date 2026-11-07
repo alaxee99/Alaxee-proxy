@@ -181,6 +181,7 @@ test("full settings preserve both direct and force-proxy rule lists through the 
 test("unified account auth is limited to the shared Supabase project host", async () => {
   assert.ok(manifest.permissions.includes("proxy"));
   assert.ok(manifest.permissions.includes("storage"));
+  assert.ok(manifest.permissions.includes("alarms"));
   assert.ok(manifest.optional_permissions.includes("tabs"));
   assert.deepEqual(manifest.host_permissions, ["https://xcvxpallbauhpgigyxeh.supabase.co/*"]);
   assert.ok(!manifest.permissions.includes("webRequest"));

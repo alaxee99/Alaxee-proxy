@@ -20,7 +20,7 @@ Signing out removes the local session. The extension also asks Supabase Auth to 
 
 ## Domain rules and cloud-sync status
 
-In this version, whitelist and blacklist entries remain local. Account sign-in does not upload or download them. A later cloud-sync release may add user-scoped rule storage; this notice must be updated before that feature is enabled.
+The feature branch contains a user-scoped cloud-sync implementation, but it is not active in the released extension. The production-backend gate remains disabled and the database migration has not been applied. Until a separately approved rollout, whitelist and blacklist entries remain local and sign-in does not upload or download them. Before that gate is enabled, this notice and release documentation must be reviewed and updated.
 
 The local proxy address, port, scheme, and selected browser proxy mode are device-specific settings and are not intended for cloud synchronization.
 

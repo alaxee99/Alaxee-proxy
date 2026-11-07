@@ -265,3 +265,64 @@ test("deletion is represented by a tombstone update and never by REST DELETE", a
   assert.equal(harness.serverRows[0].is_deleted, true);
   assert.equal(harness.calls.some((call) => call.method === "DELETE"), false);
 });
+
+test("sync pulls a remote-only change from another device without changing local proxy settings", async () => {
+  const harness = createHarness({
+    remoteRows: [makeRow("shared.example", "whitelist", 1)]
+  });
+
+  await harness.service.bootstrap();
+  harness.serverRows[0].rule_type = "blacklist";
+  harness.serverRows[0].include_subdomains = false;
+  harness.serverRows[0].revision = 2;
+
+  const status = await harness.service.sync();
+  assert.equal(status.pendingCount, 0);
+  assert.deepEqual(harness.settings.whitelist, []);
+  assert.deepEqual(harness.settings.blacklist, [
+    { host: "shared.example", includeSubdomains: false }
+  ]);
+  assert.equal(harness.settings.mode, "clash");
+  assert.equal(harness.settings.host, "127.0.0.1");
+  assert.equal(harness.settings.port, "7890");
+  assert.equal(harness.settings.scheme, "socks5");
+});
+
+test("sync recovers a local edit whose durable queue write was interrupted", async () => {
+  const harness = createHarness();
+  await harness.service.bootstrap();
+  harness.settings = {
+    ...harness.settings,
+    whitelist: [{ host: "recovered.example", includeSubdomains: true }]
+  };
+
+  const status = await harness.service.sync();
+  assert.equal(status.pendingCount, 0);
+  assert.equal(harness.serverRows.length, 1);
+  assert.equal(harness.serverRows[0].host, "recovered.example");
+  assert.equal(harness.serverRows[0].rule_type, "whitelist");
+  assert.equal(harness.serverRows[0].is_deleted, false);
+});
+
+test("sync records the last error while preserving the pending outbox", async () => {
+  const harness = createHarness({
+    localSettings: {
+      mode: "clash",
+      host: "127.0.0.1",
+      port: "7890",
+      scheme: "socks5",
+      whitelist: [{ host: "offline.example", includeSubdomains: true }],
+      blacklist: []
+    },
+    requestOverride: async (path, options) => {
+      if ((options.method || "GET") === "GET") return [];
+      if (options.method === "POST") throw new Error("network offline");
+      throw new Error("unexpected request");
+    }
+  });
+
+  await assert.rejects(harness.service.sync(), /network offline/);
+  const status = await harness.service.getStatus();
+  assert.equal(status.pendingCount, 1);
+  assert.match(status.lastError, /network offline/);
+});

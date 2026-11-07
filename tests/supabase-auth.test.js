@@ -149,7 +149,7 @@ test("authenticated REST requests carry the user's access token and custom Postg
     expires_at: 1_900_000_000_000
   };
   const { service, calls } = createHarness(async (url, init) => {
-    assert.match(url, /\\/rest\\/v1\\/proxy_domain_rules/);
+    assert.ok(url.includes("/rest/v1/proxy_domain_rules"));
     assert.equal(init.headers.apikey, "sb_publishable_unit_test");
     assert.equal(init.headers.Authorization, "Bearer access-rest-1");
     assert.equal(init.headers.Prefer, "return=representation");
@@ -179,7 +179,7 @@ test("authenticated REST requests refresh an expired session before sending the 
         expires_in: 3600
       });
     }
-    assert.match(url, /\\/rest\\/v1\\/proxy_domain_rules/);
+    assert.ok(url.includes("/rest/v1/proxy_domain_rules"));
     assert.equal(init.headers.Authorization, "Bearer rest-new-access");
     return response(200, []);
   }, initial);

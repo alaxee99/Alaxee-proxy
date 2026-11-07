@@ -236,8 +236,13 @@ async function refreshRuleSyncUi() {
 
     if (status.enabled) {
       ui.accountSyncDescription.textContent = "云同步已启用。此账号的白名单和黑名单会在设备间同步；代理端点和模式不会同步。";
-      ui.accountSyncStatus.textContent = `待上传变更：${status.pendingCount ?? 0} 条。` +
-        (status.lastSyncedAt ? ` 上次同步：${new Date(status.lastSyncedAt).toLocaleString()}。` : "");
+      const details = [`待上传变更：${status.pendingCount ?? 0} 条。`];
+      if (Array.isArray(status.conflicts) && status.conflicts.length) {
+        details.push(`检测到 ${status.conflicts.length} 次并发修改，已采用云端版本。`);
+      }
+      if (status.lastSyncedAt) details.push(`上次同步：${new Date(status.lastSyncedAt).toLocaleString()}。`);
+      if (status.lastError) details.push(`上次同步未完成：${status.lastError}`);
+      ui.accountSyncStatus.textContent = details.join(" ");
       ui.accountSyncButton.disabled = false;
       ui.accountSyncButton.textContent = "立即同步";
     } else {

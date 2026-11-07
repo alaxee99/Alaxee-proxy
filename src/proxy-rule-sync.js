@@ -95,6 +95,28 @@ function rowPayload(operation) {
   };
 }
 
+function snapshotForRow(row) {
+  return {
+    ruleType: row.rule_type,
+    includeSubdomains: row.include_subdomains,
+    isDeleted: row.is_deleted,
+    revision: row.revision
+  };
+}
+
+function activeRule(row) {
+  return !row || row.is_deleted
+    ? null
+    : { ruleType: row.rule_type, includeSubdomains: row.include_subdomains };
+}
+
+function sameRule(left, right) {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return left.ruleType === right.ruleType &&
+    left.includeSubdomains === right.includeSubdomains;
+}
+
 function makeQuery(parameters) {
   return new URLSearchParams(parameters).toString();
 }
@@ -128,7 +150,7 @@ export function createProxyRuleSyncService({
   async function readState() {
     const value = await storage.get(stateKey);
     if (!value || typeof value !== "object" || Array.isArray(value)) {
-      return { version: PROXY_RULE_SYNC_VERSION, userId, bootstrapped: false, revisions: {}, conflicts: [] };
+      return { version: PROXY_RULE_SYNC_VERSION, userId, bootstrapped: false, revisions: {}, snapshot: {}, conflicts: [] };
     }
     if (value.userId !== userId || value.version !== PROXY_RULE_SYNC_VERSION) {
       throw new Error("Stored Proxy sync metadata does not match this account or version.");
@@ -137,7 +159,8 @@ export function createProxyRuleSyncService({
       version: PROXY_RULE_SYNC_VERSION,
       userId,
       bootstrapped: Boolean(value.bootstrapped),
-      revisions: value.revisions && typeof value.revisions === "object" ? value.revisions : {},
+      revisions: value.revisions && typeof value.revisions === "object" && !Array.isArray(value.revisions) ? value.revisions : {},
+      snapshot: value.snapshot && typeof value.snapshot === "object" && !Array.isArray(value.snapshot) ? value.snapshot : {},
       conflicts: Array.isArray(value.conflicts) ? value.conflicts.slice(-MAX_CONFLICTS) : [],
       lastSyncedAt: value.lastSyncedAt ?? null,
       lastError: value.lastError ?? null
@@ -179,7 +202,8 @@ export function createProxyRuleSyncService({
       const query = makeQuery({
         select: REMOTE_COLUMNS,
         user_id: `eq.${userId}`,
-        order: "updated_at.asc,host.asc",
+        // Host is unique within a user, so timestamp changes cannot shift page boundaries.
+        order: "host.asc",
         limit: String(pageSize),
         offset: String(offset)
       });
@@ -277,6 +301,7 @@ export function createProxyRuleSyncService({
     }
 
     state.revisions = Object.fromEntries(remoteRows.map((row) => [row.host, row.revision]));
+    state.snapshot = Object.fromEntries(remoteRows.map((row) => [row.host, snapshotForRow(row)]));
     state.bootstrapped = true;
     state.lastSyncedAt = now();
     state.lastError = null;
@@ -315,12 +340,113 @@ export function createProxyRuleSyncService({
     }
     await applyRemoteRow(remoteRow);
     state.revisions[remoteRow.host] = remoteRow.revision;
+    state.snapshot[remoteRow.host] = snapshotForRow(remoteRow);
     state.conflicts = [
       ...state.conflicts,
       { host: operation.host, at: now(), remoteRevision: remoteRow.revision }
     ].slice(-MAX_CONFLICTS);
     await writeState(state);
     await writeOutbox(outbox.filter((entry) => entry.id !== operation.id));
+  }
+
+
+  async function pullRemoteChanges() {
+    await assertAccountBinding();
+    const remoteRows = await fetchRemoteRows();
+    const remoteByHost = new Map(remoteRows.map((row) => [row.host, row]));
+    const state = await readState();
+    const outbox = await readOutbox();
+    const pendingByHost = new Map(outbox.map((operation) => [operation.host, operation]));
+    const localByHost = makeRuleMap(await getLocalSettings());
+
+    // Client DELETE is disabled. A previously known row disappearing is an integrity
+    // anomaly, not permission to recreate or erase the local rule.
+    const missingHosts = Object.keys(state.snapshot).filter((host) => !remoteByHost.has(host));
+    if (missingHosts.length) {
+      throw new Error(
+        `Previously synchronized Proxy rule rows disappeared from Supabase (${missingHosts.slice(0, 5).join(", ")}); local rules were left untouched.`
+      );
+    }
+
+    let nextOutbox = [...outbox];
+    const nextSnapshot = {};
+    const nextRevisions = {};
+
+    function recordConflict(host, revision, reason) {
+      state.conflicts = [
+        ...state.conflicts,
+        { host, at: now(), remoteRevision: revision, reason }
+      ].slice(-MAX_CONFLICTS);
+    }
+
+    function queueLocalRule(host, local, baseRevision, fallbackRow = null) {
+      if (nextOutbox.some((entry) => entry.host === host)) return;
+      nextOutbox.push({
+        id: `${host}:${now()}`,
+        host,
+        ruleType: local?.ruleType ?? fallbackRow?.rule_type ?? "whitelist",
+        includeSubdomains: local?.includeSubdomains ?? fallbackRow?.include_subdomains ?? true,
+        isDeleted: !local,
+        baseRevision: baseRevision ?? null,
+        createdAt: now()
+      });
+    }
+
+    for (const row of remoteRows) {
+      await assertAccountBinding();
+      const baselineSnapshot = state.snapshot[row.host] ?? null;
+      const baseline = baselineSnapshot && !baselineSnapshot.isDeleted
+        ? { ruleType: baselineSnapshot.ruleType, includeSubdomains: baselineSnapshot.includeSubdomains }
+        : null;
+      const local = localByHost.get(row.host) ?? null;
+      const remote = activeRule(row);
+      const pending = pendingByHost.get(row.host);
+      let adoptRemote = false;
+
+      if (pending) {
+        const pendingIsStale = pending.baseRevision == null ||
+          Number(pending.baseRevision) !== row.revision;
+        if (pendingIsStale) {
+          adoptRemote = true;
+          recordConflict(row.host, row.revision, "remote_revision_changed");
+          nextOutbox = nextOutbox.filter((entry) => entry.id !== pending.id);
+        }
+      } else {
+        const localChanged = !sameRule(local, baseline);
+        const remoteChanged = !sameRule(remote, baseline);
+
+        if (sameRule(local, remote)) {
+          // Both devices already contain the same semantic rule.
+        } else if (localChanged && remoteChanged) {
+          // Resolve simultaneous edits conservatively: the newer cloud state wins.
+          adoptRemote = true;
+          recordConflict(row.host, row.revision, "concurrent_local_and_remote_change");
+        } else if (remoteChanged) {
+          adoptRemote = true;
+        } else if (localChanged) {
+          // Recover local edits if the popup closed between writing settings and outbox.
+          queueLocalRule(row.host, local, row.revision, row);
+        }
+      }
+
+      if (adoptRemote) await applyRemoteRow(row);
+      nextSnapshot[row.host] = snapshotForRow(row);
+      nextRevisions[row.host] = row.revision;
+    }
+
+    // Recover new local-only rules whose queue write was interrupted.
+    for (const [host, local] of localByHost) {
+      if (remoteByHost.has(host) || state.snapshot[host] || nextOutbox.some((entry) => entry.host === host)) {
+        continue;
+      }
+      queueLocalRule(host, local, null);
+    }
+
+    state.snapshot = nextSnapshot;
+    state.revisions = nextRevisions;
+    await writeOutbox(nextOutbox);
+    await writeState(state);
+    return getStatus();
   }
 
   async function flushOutbox() {
@@ -344,6 +470,7 @@ export function createProxyRuleSyncService({
           }
           const row = assertRemoteRow(created[0], userId);
           state.revisions[row.host] = row.revision;
+          state.snapshot[row.host] = snapshotForRow(row);
           outbox = outbox.filter((entry) => entry.id !== operation.id);
           await writeState(state);
           await writeOutbox(outbox);
@@ -367,6 +494,7 @@ export function createProxyRuleSyncService({
         if (Array.isArray(updated) && updated.length === 1) {
           const row = assertRemoteRow(updated[0], userId);
           state.revisions[row.host] = row.revision;
+          state.snapshot[row.host] = snapshotForRow(row);
           outbox = outbox.filter((entry) => entry.id !== operation.id);
           await writeState(state);
           await writeOutbox(outbox);
@@ -388,9 +516,21 @@ export function createProxyRuleSyncService({
   }
 
   async function sync() {
-    await assertAccountBinding();
-    if (!(await readState()).bootstrapped) await bootstrap();
-    return flushOutbox();
+    try {
+      await assertAccountBinding();
+      if (!(await readState()).bootstrapped) await bootstrap();
+      await pullRemoteChanges();
+      return await flushOutbox();
+    } catch (error) {
+      try {
+        const state = await readState();
+        state.lastError = String(error?.message ?? error).slice(0, 500);
+        await writeState(state);
+      } catch {
+        // Keep the original sync error if local metadata cannot be updated.
+      }
+      throw error;
+    }
   }
 
   async function getStatus() {

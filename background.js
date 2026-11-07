@@ -338,6 +338,8 @@ const supabaseAuth = createSupabaseAuthService({
 });
 
 const PROXY_RULE_SYNC_ENABLED_KEY = "alaxeeProxyRuleSync.v1.enabledUserId";
+const PROXY_RULE_SYNC_RETRY_ALARM = "alaxeeProxyRuleSync.v1.retry";
+const PROXY_RULE_SYNC_RETRY_MINUTES = 15;
 // The migration exists on the feature branch, but production has not been changed.
 // Keep all network sync disabled until the user separately approves that rollout.
 const PROXY_RULE_SYNC_BACKEND_READY = false;
@@ -419,7 +421,54 @@ async function enableRuleCloudSync() {
   }
   const status = await service.sync();
   await chromeCall(chrome.storage.local, "set", { [PROXY_RULE_SYNC_ENABLED_KEY]: userId });
+  await maintainRuleSyncAlarm();
   return { ...status, enabled: true, backendReady: true };
+}
+
+
+async function syncEnabledRuleAccount() {
+  if (!PROXY_RULE_SYNC_BACKEND_READY) return { skipped: "backend_not_ready" };
+  const session = await supabaseAuth.getSession();
+  const userId = session?.user?.id;
+  if (!userId) return { skipped: "signed_out" };
+
+  const [enabledUserId, boundUserId] = await Promise.all([
+    readLocalValue(PROXY_RULE_SYNC_ENABLED_KEY),
+    readLocalValue(PROXY_RULE_SYNC_BINDING_KEY)
+  ]);
+  if (enabledUserId !== userId || (boundUserId && boundUserId !== userId)) {
+    return { skipped: "account_not_enabled_or_binding_mismatch" };
+  }
+
+  const { service } = await createRuleSyncContext();
+  return service.sync();
+}
+
+async function maintainRuleSyncAlarm() {
+  const alarms = chrome.alarms;
+  if (!alarms) return;
+  if (!PROXY_RULE_SYNC_BACKEND_READY) {
+    await chromeCall(alarms, "clear", PROXY_RULE_SYNC_RETRY_ALARM).catch(() => false);
+    return;
+  }
+
+  const session = await supabaseAuth.getSession();
+  const userId = session?.user?.id;
+  const enabledUserId = userId ? await readLocalValue(PROXY_RULE_SYNC_ENABLED_KEY) : null;
+  if (!userId || enabledUserId !== userId) {
+    await chromeCall(alarms, "clear", PROXY_RULE_SYNC_RETRY_ALARM).catch(() => false);
+    return;
+  }
+  alarms.create(PROXY_RULE_SYNC_RETRY_ALARM, { periodInMinutes: PROXY_RULE_SYNC_RETRY_MINUTES });
+}
+
+async function resumeRuleSyncLifecycle() {
+  try {
+    await maintainRuleSyncAlarm();
+    await syncEnabledRuleAccount();
+  } catch (error) {
+    console.warn("Alaxee Proxy rule sync recovery deferred:", error?.message ?? error);
+  }
 }
 
 async function syncRuleCloudNow() {
@@ -452,7 +501,7 @@ async function enqueueLocalRuleChanges(operations) {
     await service.enqueueRule(operation);
   }
   const status = await service.getStatus();
-  if (status.bootstrapped && status.pendingCount > 0) await service.flushOutbox();
+  if (status.bootstrapped && status.pendingCount > 0) await service.sync();
   return { queued: true, userId, ...(await service.getStatus()) };
 }
 
@@ -499,13 +548,19 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
   if (message?.type === "ALAXEE_AUTH_SIGN_IN") {
     supabaseAuth.signInWithPassword({ email: message.email, password: message.password })
-      .then((user) => sendResponse({ ok: true, user }))
+      .then(async (user) => {
+        await resumeRuleSyncLifecycle();
+        sendResponse({ ok: true, user });
+      })
       .catch((error) => sendResponse({ ok: false, error: error?.message ?? "auth_sign_in_failed" }));
     return true;
   }
   if (message?.type === "ALAXEE_AUTH_SIGN_OUT") {
     supabaseAuth.signOut()
-      .then((result) => sendResponse({ ok: true, remoteRevoked: result.remoteRevoked }))
+      .then(async (result) => {
+        await maintainRuleSyncAlarm();
+        sendResponse({ ok: true, remoteRevoked: result.remoteRevoked });
+      })
       .catch((error) => sendResponse({ ok: false, error: error?.message ?? "auth_sign_out_failed" }));
     return true;
   }
@@ -516,8 +571,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   return true;
 });
 
-chrome.runtime.onInstalled.addListener(refreshAllSafely);
-chrome.runtime.onStartup.addListener(refreshAllSafely);
+chrome.runtime.onInstalled.addListener(() => {
+  refreshAllSafely();
+  void resumeRuleSyncLifecycle();
+});
+chrome.runtime.onStartup.addListener(() => {
+  refreshAllSafely();
+  void resumeRuleSyncLifecycle();
+});
+chrome.alarms?.onAlarm.addListener((alarm) => {
+  if (alarm?.name !== PROXY_RULE_SYNC_RETRY_ALARM) return;
+  void syncEnabledRuleAccount().catch((error) => {
+    console.warn("Alaxee Proxy scheduled rule sync deferred:", error?.message ?? error);
+  });
+});
 
 chrome.proxy.settings.onChange.addListener(refreshAllSafely);
 chrome.storage.onChanged.addListener((changes, areaName) => {
@@ -541,3 +608,4 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo) => {
 });
 
 refreshAllSafely();
+void resumeRuleSyncLifecycle();
