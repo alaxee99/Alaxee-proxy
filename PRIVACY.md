@@ -1,6 +1,6 @@
 # Alaxee Proxy privacy notice
 
-Last updated: 2026-11-07
+Last updated: 2026-11-09
 
 Alaxee Proxy is a Microsoft Edge extension for controlling Edge's browser proxy setting and maintaining direct-connection and force-proxy domain rules. Proxy routing configuration remains local to the browser profile.
 
@@ -12,7 +12,7 @@ Alaxee Proxy is a Microsoft Edge extension for controlling Edge's browser proxy 
 
 ## ALAXEE account authentication
 
-When the user signs in, the extension sends the supplied email address and password directly to the ALAXEE Supabase Auth service at `https://xcvxpallbauhpgigyxeh.supabase.co` over HTTPS. Supabase validates the credentials and returns a session. The extension uses that session to identify the same ALAXEE user account already used by ALAXEE Start.
+When the user signs in, the extension sends the supplied email address and password directly to the ALAXEE Supabase Auth service at `https://kystcwxlqqzgjbdhdmap.supabase.co` over HTTPS. Supabase validates the credentials and returns a session. The extension uses that session to identify the same ALAXEE user account already used by ALAXEE Start.
 
 The extension requests only the fixed Supabase project host permission. It does not send tab URLs, page content, proxy endpoint values, or domain rules as part of sign-in. The password is held only in memory for the sign-in request and is not written to extension storage or logs.
 
