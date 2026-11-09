@@ -183,7 +183,10 @@ test("unified account auth is limited to the shared Supabase project host", asyn
   assert.ok(manifest.permissions.includes("storage"));
   assert.ok(manifest.permissions.includes("alarms"));
   assert.ok(manifest.optional_permissions.includes("tabs"));
-  assert.deepEqual(manifest.host_permissions, ["https://xcvxpallbauhpgigyxeh.supabase.co/*"]);
+  assert.deepEqual(manifest.host_permissions, ["https://kystcwxlqqzgjbdhdmap.supabase.co/*"]);
+  const supabaseConfig = await readFile(path.join(root, "src/supabase-config.js"), "utf8");
+  assert.ok(supabaseConfig.includes('export const SUPABASE_URL = "https://kystcwxlqqzgjbdhdmap.supabase.co";'));
+  assert.match(supabaseConfig, /SUPABASE_PUBLISHABLE_KEY = "sb_publishable_[^"]+"/);
   assert.ok(!manifest.permissions.includes("webRequest"));
   assert.ok(!manifest.permissions.includes("identity"));
   assertLocalFile("src/supabase-auth.js", "Supabase auth module");
