@@ -2,7 +2,7 @@
 
 ## Canonical identity
 
-All ALAXEE products use the existing `alaxee-start` Supabase Auth project (`xcvxpallbauhpgigyxeh`). The canonical identity is the Supabase `auth.users.id`; products must not create separate user tables as an alternate identity authority.
+All ALAXEE products use the existing `alaxee-start` Supabase Auth project (`kystcwxlqqzgjbdhdmap`). The canonical identity is the Supabase `auth.users.id`; products must not create separate user tables as an alternate identity authority.
 
 A shared account means the same ALAXEE user ID is recognized across products. Each product/browser installation keeps its own local Auth session; this is not automatic cookie sharing or OS-level single sign-on. A user may need to sign in separately in each product.
 
