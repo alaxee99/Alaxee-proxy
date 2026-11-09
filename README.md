@@ -58,7 +58,7 @@
 | `proxy` | 设置 Edge 浏览器代理模式、PAC 域名路由及代理例外。 |
 | `storage` | 本地保存设置和直连白名单。 |
 | `activeTab` | 用户点击扩展时读取当前标签页 URL，以便快捷添加当前网站；不申请全站内容访问权限。 |
-| `tabs`（可选） | 用户首次添加直连白名单时会请求，或可在面板中主动启用。授权后读取标签页 URL，并按每个页面的实际浏览器路由更新工具栏图标和悬停标题；未授权时显示未知状态；仅本地处理，不读取页面内容、不上传数据。 |\n| `host_permissions`（固定域名） | 仅访问 `xcvxpallbauhpgigyxeh.supabase.co`，用于向共享 ALAXEE Supabase Auth 服务提交登录请求、刷新会话和验证用户。 |
+| `tabs`（可选） | 用户首次添加直连白名单时会请求，或可在面板中主动启用。授权后读取标签页 URL，并按每个页面的实际浏览器路由更新工具栏图标和悬停标题；未授权时显示未知状态；仅本地处理，不读取页面内容、不上传数据。 |\n| `host_permissions`（固定域名） | 仅访问 `kystcwxlqqzgjbdhdmap.supabase.co`，用于向共享 ALAXEE Supabase Auth 服务提交登录请求、刷新会话和验证用户。 |
 
 扩展不申请 `webRequest`、剪贴板或 `identity` 权限；仅请求访问 ALAXEE 的固定 Supabase 项目域名，用于账户登录、刷新会话和验证当前用户。没有远程脚本或遥测。
 
