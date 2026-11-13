@@ -72,6 +72,8 @@ const ui = {
   ruleForm: $("ruleForm"),
   ruleHostInput: $("ruleHostInput"),
   ruleIncludeSubdomains: $("ruleIncludeSubdomainsInput"),
+  ruleSearchInput: $("ruleSearchInput"),
+  ruleFilterSummary: $("ruleFilterSummary"),
   addRuleButton: $("addRuleButton"),
   activeRuleTitle: $("activeRuleTitle"),
   ruleList: $("rulesList"),
@@ -88,6 +90,9 @@ let activeMode = "clash";
 let activeView = "overview";
 let accountUser = null;
 let activeRuleType = "whitelist";
+let ruleSearchQuery = "";
+let proxyApplyInFlight = false;
+let proxyConfigDirty = false;
 let noticeTimer = null;
 
 function sendNotice(message, kind = "success") {
@@ -340,34 +345,76 @@ async function loadSettings() {
   renderModes();
 }
 
-async function saveSettings(nextSettings) {
-  const previousSettings = settings;
+async function saveSettings(nextSettings, { applyProxy = false } = {}) {
+  const baseSettings = {
+    ...settings,
+    whitelist: [...settings.whitelist],
+    blacklist: [...settings.blacklist]
+  };
   const next = {
     ...settings,
     ...nextSettings,
     whitelist: normalizeWhitelist(nextSettings.whitelist ?? settings.whitelist),
     blacklist: normalizeBlacklist(nextSettings.blacklist ?? settings.blacklist)
   };
-  const syncOperations = buildRuleSyncOperations(previousSettings, next);
-  settings = next;
-  await chromeCall(chrome.storage.local, "set", { settings });
+  const response = await sendAccountMessage({
+    type: applyProxy ? "ALAXEE_PROXY_SETTINGS_APPLY" : "ALAXEE_PROXY_SETTINGS_SAVE",
+    baseSettings,
+    proposedSettings: next
+  });
+  if (!response.ok || !response.settings) {
+    throw new Error(response.error || "代理设置未能保存。");
+  }
+
+  const previousSettings = response.previousSettings ?? baseSettings;
+  settings = response.settings;
   syncRuleCounts();
 
+  const syncOperations = buildRuleSyncOperations(previousSettings, settings);
   if (syncOperations.length && accountUser) {
     try {
-      const response = await sendAccountMessage({
+      const syncResponse = await sendAccountMessage({
         type: "ALAXEE_PROXY_RULE_SYNC_ENQUEUE",
         operations: syncOperations
       });
-      if (!response.ok) {
-        sendNotice(`规则已保存在本机，但云同步队列未更新：${response.error || "未知错误"}`, "warning");
-      } else if (response.status?.pendingCount > 0) {
-        ui.accountSyncStatus.textContent = `有 ${response.status.pendingCount} 条规则等待云端同步。`;
+      if (!syncResponse.ok) {
+        sendNotice(`规则已保存在本机，但云同步队列未更新：${syncResponse.error || "未知错误"}`, "warning");
+      } else if (syncResponse.status?.pendingCount > 0) {
+        ui.accountSyncStatus.textContent = `有 ${syncResponse.status.pendingCount} 条规则等待云端同步。`;
       }
     } catch (error) {
       sendNotice(`规则已保存在本机，但云同步队列未更新：${error.message}`, "warning");
     }
   }
+  return response;
+}
+
+
+function syncSettingsFromStorage(changes, areaName) {
+  if (areaName !== "local" || !changes?.settings) return;
+
+  const raw = changes.settings.newValue;
+  const stored = raw && typeof raw === "object" ? raw : {};
+  settings = {
+    ...DEFAULT_SETTINGS,
+    ...stored,
+    whitelist: normalizeWhitelist(stored.whitelist),
+    blacklist: normalizeBlacklist(stored.blacklist)
+  };
+
+  // Preserve an in-progress endpoint draft in this page while refreshing saved state.
+  if (!proxyConfigDirty) {
+    ui.host.value = settings.host;
+    ui.port.value = settings.port;
+    ui.scheme.value = settings.scheme;
+  }
+  if (document.activeElement !== ui.includeSubdomains) {
+    ui.includeSubdomains.checked = settings.includeSubdomains !== false;
+  }
+
+  syncRuleCounts();
+  renderRules();
+  renderCurrentPage();
 }
 
 async function getCurrentTab() {
@@ -446,10 +493,11 @@ function renderCurrentPage() {
 
   ui.currentHost.textContent = currentHostname;
   ui.currentRoute.textContent = messages[route];
-  ui.addCurrentDirect.disabled = whitelistExact;
-  ui.addCurrentProxy.disabled = blacklistExact;
+  ui.addCurrentDirect.disabled = proxyApplyInFlight || whitelistExact;
+  ui.addCurrentProxy.disabled = proxyApplyInFlight || blacklistExact;
   ui.removeCurrentRule.hidden = !whitelistExact && !blacklistExact;
-  ui.includeSubdomains.disabled = whitelistExact || blacklistExact;
+  ui.removeCurrentRule.disabled = proxyApplyInFlight;
+  ui.includeSubdomains.disabled = proxyApplyInFlight || whitelistExact || blacklistExact;
 
   if (route === "system") {
     ui.siteHint.textContent = "系统代理模式会把规则暂时搁置；切回 Clash 或全局直连后规则会重新生效。";
@@ -503,16 +551,32 @@ function switchRuleType(type) {
 
 function renderRules() {
   const entries = getRuleList(activeRuleType);
+  const query = ruleSearchQuery.trim().toLocaleLowerCase();
+  const visibleEntries = query
+    ? entries.filter((entry) => entry.host.toLocaleLowerCase().includes(query))
+    : entries;
   ui.ruleList.replaceChildren();
   ui.ruleCount.textContent = String(entries.length);
-  ui.ruleEmpty.hidden = entries.length > 0;
+  ui.ruleEmpty.hidden = visibleEntries.length > 0;
   ui.clearRules.hidden = entries.length === 0;
   ui.totalRuleCount.textContent = String(countRules());
+  ui.ruleFilterSummary.textContent = query
+    ? `显示 ${visibleEntries.length} / ${entries.length} 条`
+    : `共 ${entries.length} 条`;
 
-  for (const entry of entries) {
+  const emptyTitle = ui.ruleEmpty.children[1];
+  const emptySubtitle = ui.ruleEmpty.children[2];
+  if (entries.length === 0) {
+    emptyTitle.textContent = "还没有添加域名";
+    emptySubtitle.textContent = "可以在概览页将当前网站加入规则";
+  } else if (visibleEntries.length === 0) {
+    emptyTitle.textContent = "没有找到匹配的域名";
+    emptySubtitle.textContent = "换一个关键词，或切换白名单 / 黑名单";
+  }
+
+  for (const entry of visibleEntries) {
     const item = document.createElement("li");
     item.className = "whitelist-item";
-
     const detail = document.createElement("div");
     detail.className = "rule-detail";
     const domain = document.createElement("div");
@@ -526,20 +590,43 @@ function renderRules() {
     type.textContent = activeRuleType === "blacklist" ? "强制 Clash" : "直连";
     detail.append(domain, meta, type);
 
+    const actions = document.createElement("div");
+    actions.className = "rule-item-actions";
+    const scopeLabel = document.createElement("label");
+    scopeLabel.className = "rule-scope-toggle";
+    const scopeInput = document.createElement("input");
+    scopeInput.type = "checkbox";
+    scopeInput.checked = entry.includeSubdomains;
+    scopeInput.disabled = proxyApplyInFlight;
+    scopeInput.setAttribute("aria-label", `同时匹配 ${entry.host} 的子域名`);
+    scopeInput.addEventListener("change", () => {
+      void updateRuleSubdomains(entry.host, activeRuleType, scopeInput.checked);
+    });
+    const scopeText = document.createElement("span");
+    scopeText.textContent = "子域";
+    scopeLabel.append(scopeInput, scopeText);
+
     const remove = document.createElement("button");
     remove.className = "remove-button";
     remove.type = "button";
     remove.textContent = "×";
+    remove.disabled = proxyApplyInFlight;
     remove.setAttribute("aria-label", `移除 ${entry.host}`);
-    remove.addEventListener("click", () => removeDomainRule(entry.host, activeRuleType));
-
-    item.append(detail, remove);
+    remove.addEventListener("click", () => {
+      void removeDomainRule(entry.host, activeRuleType).catch((error) => {
+        renderRules();
+        sendNotice(`移除规则失败：${error.message}`, "error");
+      });
+    });
+    actions.append(scopeLabel, remove);
+    item.append(detail, actions);
     ui.ruleList.append(item);
   }
 }
 
-async function readProxyState() {
+async function readProxyState({ announceControlChange = true } = {}) {
   try {
+    const previousLevel = proxyStateSnapshot?.levelOfControl ?? null;
     const result = await chromeCall(chrome.proxy.settings, "get", { incognito: false });
     proxyStateSnapshot = result;
     const level = result?.levelOfControl ?? "unknown";
@@ -548,22 +635,54 @@ async function readProxyState() {
     activeMode = inferActiveMode(current, settings);
     renderModes();
     renderCurrentPage();
-    ui.stateText.textContent = label;
-    ui.statePill.className = `state-pill ${level === "controlled_by_this_extension" ? "state-good" : level === "not_controllable" || level === "controlled_by_other_extensions" ? "state-bad" : "state-neutral"}`;
 
-    if (level === "not_controllable" || level === "controlled_by_other_extensions") {
-      sendNotice("浏览器代理设置当前由其他扩展或管理策略控制，Alaxee Proxy 可能无法切换。", "error");
+    const ownershipLabels = {
+      controlled_by_other_extensions: "其他扩展控制",
+      not_controllable: "浏览器策略限制"
+    };
+    const stateLabel = ownershipLabels[level] ??
+      (level === "controlled_by_this_extension" && activeMode === "clash" ? "Clash 路由已应用" : label);
+    ui.stateText.textContent = stateLabel;
+    ui.statePill.className = `state-pill ${level === "controlled_by_this_extension" ? "state-good" : level === "not_controllable" || level === "controlled_by_other_extensions" ? "state-bad" : "state-neutral"}`;
+    ui.statePill.title = level === "controlled_by_this_extension"
+      ? "Edge 代理设置由 Alaxee Proxy 控制；此状态不检测本机 Clash / Mihomo 服务是否在线。"
+      : level === "controlled_by_other_extensions"
+        ? "Edge 代理设置当前由其他扩展控制，Alaxee Proxy 无法确认实际路由。"
+        : level === "not_controllable"
+          ? "Edge 代理设置受到浏览器或组织策略限制。"
+          : "当前代理设置可由 Alaxee Proxy 接管。";
+    ui.statePill.setAttribute("aria-label", stateLabel + "。" + ui.statePill.title);
+
+    if (announceControlChange && previousLevel !== level &&
+        (level === "not_controllable" || level === "controlled_by_other_extensions")) {
+      sendNotice("Edge 代理设置的控制权已发生变化：" + stateLabel + "。", "warning");
     }
-    if (label === "其他代理配置" || label === "自动检测代理" || label === "其他 PAC 代理配置") {
+    if (!['not_controllable', 'controlled_by_other_extensions'].includes(level) &&
+        (label === "其他代理配置" || label === "自动检测代理" || label === "其他 PAC 代理配置")) {
       ui.statePill.className = "state-pill state-warn";
     }
     return { level, current };
   } catch (error) {
     ui.stateText.textContent = "无法读取状态";
     ui.statePill.className = "state-pill state-bad";
+    ui.statePill.title = "读取 Edge 浏览器代理设置失败。";
     sendNotice(`读取浏览器代理状态失败：${error.message}`, "error");
     return null;
   }
+}
+
+function renderProxyControls() {
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.disabled = proxyApplyInFlight;
+  });
+  ui.saveConnect.disabled = proxyApplyInFlight;
+  ui.addRuleButton.disabled = proxyApplyInFlight;
+  ui.clearRules.disabled = proxyApplyInFlight;
+  ui.ruleHostInput.disabled = proxyApplyInFlight;
+  ui.ruleIncludeSubdomains.disabled = proxyApplyInFlight;
+  document.documentElement.setAttribute("aria-busy", String(proxyApplyInFlight));
+  renderCurrentPage();
+  renderRules();
 }
 
 async function persistWithoutApplying(nextSettings, message) {
@@ -578,6 +697,10 @@ async function persistWithoutApplying(nextSettings, message) {
 }
 
 async function applyMode(mode, overrides = {}) {
+  if (proxyApplyInFlight) throw new Error("另一项代理设置正在应用，请稍后重试。");
+  proxyApplyInFlight = true;
+  renderProxyControls();
+
   const next = {
     ...settings,
     ...overrides,
@@ -586,16 +709,16 @@ async function applyMode(mode, overrides = {}) {
     blacklist: normalizeBlacklist(overrides.blacklist ?? settings.blacklist)
   };
 
-  const proxyConfig = buildChromeProxyConfig(next);
-  await chromeCall(chrome.proxy.settings, "set", {
-    value: proxyConfig,
-    scope: "regular"
-  });
-  await saveSettings(next);
-  activeMode = mode;
-  renderModes();
-  renderRules();
-  await readProxyState();
+  try {
+    await saveSettings(next, { applyProxy: true });
+    activeMode = settings.mode;
+    renderModes();
+    renderRules();
+    await readProxyState({ announceControlChange: false });
+  } finally {
+    proxyApplyInFlight = false;
+    renderProxyControls();
+  }
 }
 
 async function addDomainRule(type, host, includeSubdomains = true) {
@@ -618,7 +741,6 @@ async function addDomainRule(type, host, includeSubdomains = true) {
       sendNotice(`${normalized.host} 的规则已保存在本机，但浏览器代理正由其他程序控制，Alaxee Proxy 没有覆盖它。`, "warning");
     }
   } else {
-    await saveSettings(next);
     await applyMode(activeMode, next);
     sendNotice(`${normalized.host} 已加入${type === "blacklist" ? "代理黑名单" : "直连白名单"}。`, "success");
   }
@@ -633,53 +755,70 @@ async function removeDomainRule(host, type) {
     await persistWithoutApplying({ [key]: nextEntries }, message);
     if (!activeMode) sendNotice(`${message}。代理设置由其他程序控制，因此没有更改浏览器代理。`, "warning");
   } else {
-    await saveSettings({ [key]: nextEntries });
     await applyMode(activeMode, { [key]: nextEntries });
     sendNotice(`${message}。`, "success");
   }
   renderCurrentPage();
 }
 
+async function updateRuleSubdomains(host, type, includeSubdomains) {
+  const key = type === "blacklist" ? "blacklist" : "whitelist";
+  const current = settings[key].find((entry) => entry.host === host);
+  if (!current || current.includeSubdomains === Boolean(includeSubdomains)) return;
+  const nextEntries = settings[key].map((entry) => entry.host === host
+    ? { ...entry, includeSubdomains: Boolean(includeSubdomains) }
+    : entry);
+  const next = { [key]: nextEntries };
+
+  try {
+    if (activeMode === "system") {
+      await persistWithoutApplying(next, `${host} 的子域名匹配范围`);
+    } else if (!activeMode) {
+      await saveSettings(next);
+      renderRules();
+      renderCurrentPage();
+      sendNotice(`${host} 的子域名匹配范围已保存在本机；当前浏览器代理由其他程序控制。`, "warning");
+    } else {
+      await applyMode(activeMode, next);
+      sendNotice(`${host} 的子域名匹配范围已更新。`, "success");
+    }
+  } catch (error) {
+    renderRules();
+    sendNotice(`更新规则失败：${error.message}`, "error");
+  }
+}
+
 async function clearActiveRules() {
+  const entries = getRuleList(activeRuleType);
+  if (!entries.length) return;
+  const listName = activeRuleType === "blacklist" ? "代理黑名单" : "直连白名单";
+  const confirmed = window.confirm(
+    `确定清空${listName}中的 ${entries.length} 条规则吗？此操作会立即更新本机设置。`
+  );
+  if (!confirmed) return;
+
   const key = activeRuleType === "blacklist" ? "blacklist" : "whitelist";
   const next = { [key]: [] };
   if (activeMode === "system" || !activeMode) {
     await persistWithoutApplying(next, activeRuleType === "blacklist" ? "代理黑名单已清空" : "直连白名单已清空");
     if (!activeMode) sendNotice("规则已清空；当前浏览器代理由其他程序控制，未更改其设置。", "warning");
   } else {
-    await saveSettings(next);
     await applyMode(activeMode, next);
     sendNotice(activeRuleType === "blacklist" ? "代理黑名单已清空。" : "直连白名单已清空。", "success");
   }
   renderCurrentPage();
 }
 
-async function addCurrentRule(type, permissionResult = true) {
+async function addCurrentRule(type) {
   if (!currentHostname) return;
   try {
     await addDomainRule(type, currentHostname, ui.includeSubdomains.checked);
-    if (permissionResult === false) {
-      sendNotice("规则已保存，但未启用逐网页图标权限；工具栏暂时无法逐网页区分代理状态。", "warning");
-    }
   } catch (error) {
     sendNotice(`添加规则失败：${error.message}`, "error");
   }
 }
 
-function requestTabsPermissionAndRun(action) {
-  // This callback is invoked directly from a user click. Permission is optional;
-  // rule changes work even if the user denies it.
-  chrome.permissions.request({ permissions: ["tabs"] }, (granted) => {
-    const permissionError = chrome.runtime.lastError;
-    if (permissionError) {
-      void action(false);
-      return;
-    }
-    void action(granted);
-  });
-}
-
-async function addManualRule(tabsPermissionGranted = null) {
+async function addManualRule() {
   const host = ui.ruleHostInput.value.trim();
   if (!host) {
     sendNotice("请先输入域名。", "error");
@@ -688,9 +827,6 @@ async function addManualRule(tabsPermissionGranted = null) {
   try {
     await addDomainRule(activeRuleType, host, ui.ruleIncludeSubdomains.checked);
     ui.ruleHostInput.value = "";
-    if (tabsPermissionGranted === false) {
-      sendNotice("规则已保存；但逐网页图标权限未开启，工具栏暂时显示未知状态。", "warning");
-    }
   } catch (error) {
     sendNotice(`添加失败：${error.message}`, "error");
   }
@@ -701,6 +837,7 @@ async function connectClash() {
   try {
     validateProxySettings(config);
     await applyMode("clash", config);
+    proxyConfigDirty = false;
     sendNotice("Clash 地址和端口已保存，代理规则已应用到 Edge。", "success");
   } catch (error) {
     sendNotice(`连接设置未能应用：${error.message}`, "error");
@@ -720,6 +857,7 @@ function renderStatusPermission() {
 async function initialize() {
   try {
     await loadSettings();
+    chrome.storage.onChanged.addListener(syncSettingsFromStorage);
     await loadAccount();
     switchRuleType("whitelist");
     renderStatusPermission();
@@ -757,7 +895,7 @@ async function initialize() {
   ui.blacklistTab.addEventListener("click", () => switchRuleType("blacklist"));
   ui.ruleForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    requestTabsPermissionAndRun((granted) => addManualRule(granted));
+    void addManualRule();
   });
   ui.clearRules.addEventListener("click", () => {
     void clearActiveRules().catch((error) => sendNotice(`清空失败：${error.message}`, "error"));
@@ -781,6 +919,13 @@ async function initialize() {
     });
   });
 
+  chrome.proxy.settings.onChange.addListener(() => {
+    void readProxyState();
+  });
+
+  [ui.host, ui.port, ui.scheme].forEach((input) => {
+    input.addEventListener("input", () => { proxyConfigDirty = true; });
+  });
   ui.saveConnect.addEventListener("click", connectClash);
   ui.openSettings.addEventListener("click", async () => {
     try {
@@ -800,11 +945,11 @@ async function initialize() {
       sendNotice(`无法打开完整设置：${error.message}`, "error");
     }
   });
-  ui.addCurrentDirect.addEventListener("click", () => {
-    requestTabsPermissionAndRun((granted) => addCurrentRule("whitelist", granted));
-  });
-  ui.addCurrentProxy.addEventListener("click", () => {
-    requestTabsPermissionAndRun((granted) => addCurrentRule("blacklist", granted));
+  ui.addCurrentDirect.addEventListener("click", () => { void addCurrentRule("whitelist"); });
+  ui.addCurrentProxy.addEventListener("click", () => { void addCurrentRule("blacklist"); });
+  ui.ruleSearchInput.addEventListener("input", () => {
+    ruleSearchQuery = ui.ruleSearchInput.value;
+    renderRules();
   });
   ui.removeCurrentRule.addEventListener("click", async () => {
     if (!currentHostname) return;

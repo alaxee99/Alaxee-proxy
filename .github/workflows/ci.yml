@@ -2,12 +2,16 @@ name: CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, feat/unified-account-login]
   push:
     branches: ['**']
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
 
 jobs:
   verify:

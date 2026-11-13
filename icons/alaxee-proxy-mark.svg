@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- ALAXEE Proxy master mark. Toolbar states share this A monogram and route geometry. -->
+  <svg width="128" height="128" viewBox="0 0 64 64" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="alaxee-core" x1="12" y1="11" x2="53" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#FFE0A0"/><stop offset=".42" stop-color="#C59BFF"/><stop offset="1" stop-color="#67DFF2"/></linearGradient>
+      <linearGradient id="alaxee-orbit" x1="7" y1="54" x2="57" y2="9" gradientUnits="userSpaceOnUse"><stop stop-color="#908BFF"/><stop offset=".52" stop-color="#D7A7E8"/><stop offset="1" stop-color="#77E2F3"/></linearGradient>
+      <linearGradient id="alaxee-flow" x1="8" y1="51" x2="56" y2="9" gradientUnits="userSpaceOnUse"><stop stop-color="#958CFF"/><stop offset=".55" stop-color="#C7A0FF"/><stop offset="1" stop-color="#70E2F3"/></linearGradient>
+    </defs>
+  <style>.route-shape{opacity:0}.route-clash{opacity:1}</style>
+    <g class="route-shape route-clash" fill="none" stroke="url(#alaxee-orbit)" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
+      <path class="alaxee-route" d="M9 39C10.2 22.5 22 9.5 37.5 11.5C52.2 13.4 59.3 27 52 40.4C44.8 53.3 24.6 56.2 12.8 45.3"/>
+      <circle cx="9.5" cy="39" r="3.2" fill="#AFA7FF" stroke="#F5F2FF" stroke-width="1"/>
+      <circle cx="32" cy="53" r="3.2" fill="#D4A8EF" stroke="#F5F2FF" stroke-width="1"/>
+      <circle cx="54" cy="25" r="3.2" fill="#78DFF2" stroke="#F5F2FF" stroke-width="1"/>
+    </g>
+    <g class="route-shape route-direct">
+      <path class="alaxee-route" d="M9 50C20 54 29 48 36 33C41 23 47 16 56 9" fill="none" stroke="url(#alaxee-flow)" stroke-width="4.5" stroke-linecap="round"/>
+      <path d="M46.5 9.5H56V19" fill="none" stroke="#82E6F7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="9.5" cy="50" r="2.4" fill="#B8B0FF"/>
+    </g>
+    <g class="route-shape route-system">
+      <path class="alaxee-route" d="M7 32C7 15 23 14 32 32C41 50 57 49 57 32C57 15 41 14 32 32C23 50 7 49 7 32Z" fill="none" stroke="url(#alaxee-orbit)" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="7.5" cy="32" r="3" fill="#B8B0FF"/><circle cx="56.5" cy="32" r="3" fill="#82E6F7"/>
+    </g>
+    <g class="route-shape route-unknown" fill="none" stroke="url(#alaxee-orbit)" stroke-width="4" stroke-linecap="round">
+      <path d="M9 39C8.5 29 14 19 23 14"/><path d="M40 12.5C50 16 56 25 55 34"/><path d="M51 44C42 54 29 57 19 51"/><path d="M11.5 46.5L9 42"/>
+      <circle cx="32" cy="11" r="7" fill="#F3B36C" fill-opacity=".16" stroke="none"/>
+      <path class="alaxee-warning" d="M32 6.2L36.8 11 32 15.8 27.2 11Z" fill="#FFD18C" stroke="#FFF0D5" stroke-width="1"/>
+    </g>
+    <g class="alaxee-monogram" fill="none" stroke="url(#alaxee-core)" stroke-linecap="round" stroke-linejoin="round">
+      <path class="alaxee-a" d="M15 50C21.5 33 28.5 14 32.5 12C36.5 14 43.5 33 50 50" stroke-width="6.2"/>
+      <path class="alaxee-crossbar" d="M21.5 36C29 32.4 37.5 32.4 45 36" stroke-width="4.6"/>
+    </g>
+    <path class="alaxee-flare" d="M48 8.5V16.5M44 12.5H52"/><circle class="alaxee-star" cx="48" cy="12.5" r="2"/>
+    <path class="alaxee-glint" d="M10.5 18.5C12 16 14 14 16.6 12.8"/>
+  </svg>

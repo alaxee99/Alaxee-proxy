@@ -127,14 +127,52 @@ test("popup brand mark follows the active page route with four distinct XEE silh
   assert.ok(css.includes("prefers-reduced-motion: reduce"));
 });
 
-test("adding current-page or manual domain rules requests optional per-tab URL permission", async () => {
+test("domain rule changes do not request tabs permission; only the explicit status control does", async () => {
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
   assert.ok(script.includes('ui.addCurrentDirect.addEventListener("click", () => {'));
   assert.ok(script.includes('ui.addCurrentProxy.addEventListener("click", () => {'));
   assert.ok(script.includes('ui.ruleForm.addEventListener("submit", (event) => {'));
+  assert.ok(script.includes('ui.statusPermissionButton.addEventListener("click", () => {'));
   assert.ok(script.includes('chrome.permissions.request({ permissions: ["tabs"] }'));
-  assert.ok(script.includes("tabsPermissionGranted === false"));
-  assert.ok(script.includes("启用逐网页显示"));
+  assert.doesNotMatch(script, /requestTabsPermissionAndRun|tabsPermissionGranted/);
+  const ruleActions = script.slice(script.indexOf('ui.addCurrentDirect.addEventListener'), script.indexOf('ui.includeSubdomains.addEventListener'));
+  assert.doesNotMatch(ruleActions, /permissions\.request/);
+});
+
+test("domain rule manager supports search and direct subdomain-scope editing", async () => {
+  const html = await readFile(path.join(root, "src/popup.html"), "utf8");
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const css = await readFile(path.join(root, "src/popup.css"), "utf8");
+  assert.ok(html.includes('id="ruleSearchInput"'));
+  assert.ok(html.includes('id="ruleFilterSummary"'));
+  assert.ok(script.includes('ui.ruleSearchInput.addEventListener("input"'));
+  assert.ok(script.includes("visibleEntries = query"));
+  assert.ok(script.includes("async function updateRuleSubdomains("));
+  assert.ok(script.includes('scopeInput.addEventListener("change"'));
+  assert.ok(css.includes(".rule-item-actions"));
+});
+
+test("proxy panel distinguishes browser configuration from local Clash health and refreshes external changes", async () => {
+  const html = await readFile(path.join(root, "src/popup.html"), "utf8");
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(html.includes("不会探测本机 Clash / Mihomo 服务是否在线"));
+  assert.ok(html.includes("保存并应用到 Edge"));
+  assert.ok(script.includes('chrome.proxy.settings.onChange.addListener'));
+  assert.ok(script.includes('controlled_by_other_extensions: "其他扩展控制"'));
+  assert.ok(script.includes("Clash 路由已应用"));
+  assert.ok(script.includes("Edge 代理设置由 Alaxee Proxy 控制"));
+  assert.ok(script.includes("!['not_controllable', 'controlled_by_other_extensions'].includes(level)"));
+  const applyMode = script.slice(script.indexOf("async function applyMode("), script.indexOf("async function addDomainRule("));
+  assert.ok(applyMode.includes("await saveSettings(next, { applyProxy: true })"));
+  assert.doesNotMatch(applyMode, /chrome\.proxy\.settings, "set"/);
+
+  const worker = await readFile(path.join(root, "background.js"), "utf8");
+  const mutation = worker.slice(worker.indexOf("async function mutateProxySettings("), worker.indexOf("async function readContext("));
+  const persistIndex = mutation.indexOf('chrome.storage.local, "set", { settings: merged.settings }');
+  const applyIndex = mutation.indexOf('chrome.proxy.settings, "set"');
+  const rollbackIndex = mutation.indexOf('chrome.storage.local, "set", { settings: previousSettings }');
+  assert.ok(persistIndex >= 0 && applyIndex > persistIndex, "persist before applying the proxy config");
+  assert.ok(rollbackIndex > applyIndex, "rollback saved settings only after Edge rejects the apply");
 });
 
 test("toolbar reports unknown rather than the global mode when tabs permission is absent", async () => {
@@ -206,4 +244,83 @@ test("Edge package includes every background service-worker module", async () =>
   ]) {
     assert.ok(packager.includes(`"${modulePath}"`), `store package omits runtime module: ${modulePath}`);
   }
+});
+
+test("popup synchronizes saved settings across contexts without overwriting endpoint drafts", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes("chrome.storage.onChanged.addListener(syncSettingsFromStorage)"));
+  const start = script.indexOf("function syncSettingsFromStorage(changes, areaName)");
+  const end = script.indexOf("async function getCurrentTab()", start);
+  assert.ok(start >= 0 && end > start, "storage synchronization handler is present");
+  const handler = script.slice(start, end);
+  assert.ok(handler.includes('areaName !== "local"'));
+  assert.ok(handler.includes("normalizeWhitelist(stored.whitelist)"));
+  assert.ok(handler.includes("normalizeBlacklist(stored.blacklist)"));
+  assert.ok(handler.includes("if (!proxyConfigDirty)"));
+  assert.ok(handler.includes("document.activeElement !== ui.includeSubdomains"));
+  assert.ok(handler.includes("renderRules()"));
+  assert.ok(handler.includes("renderCurrentPage()"));
+  assert.ok(script.includes('input.addEventListener("input", () => { proxyConfigDirty = true; })'));
+  assert.ok(script.includes("proxyConfigDirty = false;"));
+});
+
+test("proxy apply lock disables every local control that can mutate proxy routing", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const controlsStart = script.indexOf("function renderProxyControls()");
+  const controlsEnd = script.indexOf("async function persistWithoutApplying(", controlsStart);
+  assert.ok(controlsStart >= 0 && controlsEnd > controlsStart);
+  const controls = script.slice(controlsStart, controlsEnd);
+  for (const control of [
+    "ui.saveConnect.disabled = proxyApplyInFlight",
+    "ui.addRuleButton.disabled = proxyApplyInFlight",
+    "ui.clearRules.disabled = proxyApplyInFlight",
+    "ui.ruleHostInput.disabled = proxyApplyInFlight",
+    "ui.ruleIncludeSubdomains.disabled = proxyApplyInFlight"
+  ]) assert.ok(controls.includes(control), `missing busy lock: ${control}`);
+  assert.ok(controls.includes('document.documentElement.setAttribute("aria-busy", String(proxyApplyInFlight))'));
+  assert.ok(controls.includes("renderCurrentPage()"));
+  assert.ok(controls.includes("renderRules()"));
+  assert.ok(script.includes("scopeInput.disabled = proxyApplyInFlight"));
+  assert.ok(script.includes("remove.disabled = proxyApplyInFlight"));
+  assert.ok(script.includes("proxyApplyInFlight || whitelistExact"));
+  assert.ok(script.includes("proxyApplyInFlight || blacklistExact"));
+});
+
+test("individual rule removal reports apply failures instead of leaking an unhandled rejection", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes('void removeDomainRule(entry.host, activeRuleType).catch((error) => {'));
+  assert.ok(script.includes('sendNotice(`移除规则失败：${error.message}`, "error")'));
+  assert.ok(script.includes("renderRules();"));
+});
+
+test("clear-all requires explicit confirmation and does nothing for an empty list", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const start = script.indexOf("async function clearActiveRules()");
+  const end = script.indexOf("async function addCurrentRule(", start);
+  assert.ok(start >= 0 && end > start);
+  const clearAction = script.slice(start, end);
+  assert.ok(clearAction.includes("const entries = getRuleList(activeRuleType)"));
+  assert.ok(clearAction.includes("if (!entries.length) return;"));
+  assert.ok(clearAction.includes("window.confirm("));
+  assert.ok(clearAction.includes("if (!confirmed) return;"));
+  assert.ok(clearAction.includes("${entries.length} 条规则"));
+});
+
+
+test("popup settings writes and proxy applies are routed through the serialized service worker queue", async () => {
+  const popup = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const worker = await readFile(path.join(root, "background.js"), "utf8");
+  const core = await readFile(path.join(root, "src/core.js"), "utf8");
+  assert.ok(popup.includes('type: applyProxy ? "ALAXEE_PROXY_SETTINGS_APPLY" : "ALAXEE_PROXY_SETTINGS_SAVE"'));
+  assert.ok(popup.includes("baseSettings,"));
+  assert.ok(popup.includes("proposedSettings: next"));
+  assert.doesNotMatch(popup, /chrome\.storage\.local, "set", \{ settings:/);
+  assert.doesNotMatch(popup, /chrome\.proxy\.settings, "set"/);
+  assert.ok(worker.includes("let proxySettingsMutationQueue = Promise.resolve()"));
+  assert.ok(worker.includes("function serializeProxySettingsMutation(operation)"));
+  assert.ok(worker.includes("mergeConcurrentSettings({"));
+  assert.ok(worker.includes('message?.type === "ALAXEE_PROXY_SETTINGS_SAVE"'));
+  assert.ok(worker.includes('message?.type === "ALAXEE_PROXY_SETTINGS_APPLY"'));
+  assert.ok(worker.includes('chrome.proxy.settings, "set"'));
+  assert.ok(core.includes("export function mergeConcurrentSettings("));
 });
