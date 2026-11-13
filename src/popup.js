@@ -72,6 +72,8 @@ const ui = {
   ruleForm: $("ruleForm"),
   ruleHostInput: $("ruleHostInput"),
   ruleIncludeSubdomains: $("ruleIncludeSubdomainsInput"),
+  ruleSearchInput: $("ruleSearchInput"),
+  ruleFilterSummary: $("ruleFilterSummary"),
   addRuleButton: $("addRuleButton"),
   activeRuleTitle: $("activeRuleTitle"),
   ruleList: $("rulesList"),
@@ -88,6 +90,7 @@ let activeMode = "clash";
 let activeView = "overview";
 let accountUser = null;
 let activeRuleType = "whitelist";
+let ruleSearchQuery = "";
 let noticeTimer = null;
 
 function sendNotice(message, kind = "success") {
@@ -349,8 +352,8 @@ async function saveSettings(nextSettings) {
     blacklist: normalizeBlacklist(nextSettings.blacklist ?? settings.blacklist)
   };
   const syncOperations = buildRuleSyncOperations(previousSettings, next);
+  await chromeCall(chrome.storage.local, "set", { settings: next });
   settings = next;
-  await chromeCall(chrome.storage.local, "set", { settings });
   syncRuleCounts();
 
   if (syncOperations.length && accountUser) {
@@ -503,16 +506,32 @@ function switchRuleType(type) {
 
 function renderRules() {
   const entries = getRuleList(activeRuleType);
+  const query = ruleSearchQuery.trim().toLocaleLowerCase();
+  const visibleEntries = query
+    ? entries.filter((entry) => entry.host.toLocaleLowerCase().includes(query))
+    : entries;
   ui.ruleList.replaceChildren();
   ui.ruleCount.textContent = String(entries.length);
-  ui.ruleEmpty.hidden = entries.length > 0;
+  ui.ruleEmpty.hidden = visibleEntries.length > 0;
   ui.clearRules.hidden = entries.length === 0;
   ui.totalRuleCount.textContent = String(countRules());
+  ui.ruleFilterSummary.textContent = query
+    ? `显示 ${visibleEntries.length} / ${entries.length} 条`
+    : `共 ${entries.length} 条`;
 
-  for (const entry of entries) {
+  const emptyTitle = ui.ruleEmpty.children[1];
+  const emptySubtitle = ui.ruleEmpty.children[2];
+  if (entries.length === 0) {
+    emptyTitle.textContent = "还没有添加域名";
+    emptySubtitle.textContent = "可以在概览页将当前网站加入规则";
+  } else if (visibleEntries.length === 0) {
+    emptyTitle.textContent = "没有找到匹配的域名";
+    emptySubtitle.textContent = "换一个关键词，或切换白名单 / 黑名单";
+  }
+
+  for (const entry of visibleEntries) {
     const item = document.createElement("li");
     item.className = "whitelist-item";
-
     const detail = document.createElement("div");
     detail.className = "rule-detail";
     const domain = document.createElement("div");
@@ -526,14 +545,29 @@ function renderRules() {
     type.textContent = activeRuleType === "blacklist" ? "强制 Clash" : "直连";
     detail.append(domain, meta, type);
 
+    const actions = document.createElement("div");
+    actions.className = "rule-item-actions";
+    const scopeLabel = document.createElement("label");
+    scopeLabel.className = "rule-scope-toggle";
+    const scopeInput = document.createElement("input");
+    scopeInput.type = "checkbox";
+    scopeInput.checked = entry.includeSubdomains;
+    scopeInput.setAttribute("aria-label", `同时匹配 ${entry.host} 的子域名`);
+    scopeInput.addEventListener("change", () => {
+      void updateRuleSubdomains(entry.host, activeRuleType, scopeInput.checked);
+    });
+    const scopeText = document.createElement("span");
+    scopeText.textContent = "子域";
+    scopeLabel.append(scopeInput, scopeText);
+
     const remove = document.createElement("button");
     remove.className = "remove-button";
     remove.type = "button";
     remove.textContent = "×";
     remove.setAttribute("aria-label", `移除 ${entry.host}`);
     remove.addEventListener("click", () => removeDomainRule(entry.host, activeRuleType));
-
-    item.append(detail, remove);
+    actions.append(scopeLabel, remove);
+    item.append(detail, actions);
     ui.ruleList.append(item);
   }
 }
@@ -618,7 +652,6 @@ async function addDomainRule(type, host, includeSubdomains = true) {
       sendNotice(`${normalized.host} 的规则已保存在本机，但浏览器代理正由其他程序控制，Alaxee Proxy 没有覆盖它。`, "warning");
     }
   } else {
-    await saveSettings(next);
     await applyMode(activeMode, next);
     sendNotice(`${normalized.host} 已加入${type === "blacklist" ? "代理黑名单" : "直连白名单"}。`, "success");
   }
@@ -633,11 +666,37 @@ async function removeDomainRule(host, type) {
     await persistWithoutApplying({ [key]: nextEntries }, message);
     if (!activeMode) sendNotice(`${message}。代理设置由其他程序控制，因此没有更改浏览器代理。`, "warning");
   } else {
-    await saveSettings({ [key]: nextEntries });
     await applyMode(activeMode, { [key]: nextEntries });
     sendNotice(`${message}。`, "success");
   }
   renderCurrentPage();
+}
+
+async function updateRuleSubdomains(host, type, includeSubdomains) {
+  const key = type === "blacklist" ? "blacklist" : "whitelist";
+  const current = settings[key].find((entry) => entry.host === host);
+  if (!current || current.includeSubdomains === Boolean(includeSubdomains)) return;
+  const nextEntries = settings[key].map((entry) => entry.host === host
+    ? { ...entry, includeSubdomains: Boolean(includeSubdomains) }
+    : entry);
+  const next = { [key]: nextEntries };
+
+  try {
+    if (activeMode === "system") {
+      await persistWithoutApplying(next, `${host} 的子域名匹配范围`);
+    } else if (!activeMode) {
+      await saveSettings(next);
+      renderRules();
+      renderCurrentPage();
+      sendNotice(`${host} 的子域名匹配范围已保存在本机；当前浏览器代理由其他程序控制。`, "warning");
+    } else {
+      await applyMode(activeMode, next);
+      sendNotice(`${host} 的子域名匹配范围已更新。`, "success");
+    }
+  } catch (error) {
+    renderRules();
+    sendNotice(`更新规则失败：${error.message}`, "error");
+  }
 }
 
 async function clearActiveRules() {
@@ -647,39 +706,22 @@ async function clearActiveRules() {
     await persistWithoutApplying(next, activeRuleType === "blacklist" ? "代理黑名单已清空" : "直连白名单已清空");
     if (!activeMode) sendNotice("规则已清空；当前浏览器代理由其他程序控制，未更改其设置。", "warning");
   } else {
-    await saveSettings(next);
     await applyMode(activeMode, next);
     sendNotice(activeRuleType === "blacklist" ? "代理黑名单已清空。" : "直连白名单已清空。", "success");
   }
   renderCurrentPage();
 }
 
-async function addCurrentRule(type, permissionResult = true) {
+async function addCurrentRule(type) {
   if (!currentHostname) return;
   try {
     await addDomainRule(type, currentHostname, ui.includeSubdomains.checked);
-    if (permissionResult === false) {
-      sendNotice("规则已保存，但未启用逐网页图标权限；工具栏暂时无法逐网页区分代理状态。", "warning");
-    }
   } catch (error) {
     sendNotice(`添加规则失败：${error.message}`, "error");
   }
 }
 
-function requestTabsPermissionAndRun(action) {
-  // This callback is invoked directly from a user click. Permission is optional;
-  // rule changes work even if the user denies it.
-  chrome.permissions.request({ permissions: ["tabs"] }, (granted) => {
-    const permissionError = chrome.runtime.lastError;
-    if (permissionError) {
-      void action(false);
-      return;
-    }
-    void action(granted);
-  });
-}
-
-async function addManualRule(tabsPermissionGranted = null) {
+async function addManualRule() {
   const host = ui.ruleHostInput.value.trim();
   if (!host) {
     sendNotice("请先输入域名。", "error");
@@ -688,9 +730,6 @@ async function addManualRule(tabsPermissionGranted = null) {
   try {
     await addDomainRule(activeRuleType, host, ui.ruleIncludeSubdomains.checked);
     ui.ruleHostInput.value = "";
-    if (tabsPermissionGranted === false) {
-      sendNotice("规则已保存；但逐网页图标权限未开启，工具栏暂时显示未知状态。", "warning");
-    }
   } catch (error) {
     sendNotice(`添加失败：${error.message}`, "error");
   }
@@ -757,7 +796,7 @@ async function initialize() {
   ui.blacklistTab.addEventListener("click", () => switchRuleType("blacklist"));
   ui.ruleForm.addEventListener("submit", (event) => {
     event.preventDefault();
-    requestTabsPermissionAndRun((granted) => addManualRule(granted));
+    void addManualRule();
   });
   ui.clearRules.addEventListener("click", () => {
     void clearActiveRules().catch((error) => sendNotice(`清空失败：${error.message}`, "error"));
@@ -800,11 +839,11 @@ async function initialize() {
       sendNotice(`无法打开完整设置：${error.message}`, "error");
     }
   });
-  ui.addCurrentDirect.addEventListener("click", () => {
-    requestTabsPermissionAndRun((granted) => addCurrentRule("whitelist", granted));
-  });
-  ui.addCurrentProxy.addEventListener("click", () => {
-    requestTabsPermissionAndRun((granted) => addCurrentRule("blacklist", granted));
+  ui.addCurrentDirect.addEventListener("click", () => { void addCurrentRule("whitelist"); });
+  ui.addCurrentProxy.addEventListener("click", () => { void addCurrentRule("blacklist"); });
+  ui.ruleSearchInput.addEventListener("input", () => {
+    ruleSearchQuery = ui.ruleSearchInput.value;
+    renderRules();
   });
   ui.removeCurrentRule.addEventListener("click", async () => {
     if (!currentHostname) return;

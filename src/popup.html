@@ -161,6 +161,10 @@
           <input id="ruleIncludeSubdomainsInput" type="checkbox" checked><span class="custom-check" aria-hidden="true"></span>
           <span>同时应用到它的子域名</span>
         </label>
+        <div class="rule-search-row">
+          <label class="field rule-search-field"><span>搜索当前规则</span><input id="ruleSearchInput" type="search" autocomplete="off" spellcheck="false" maxlength="253" placeholder="输入域名关键词"></label>
+          <span id="ruleFilterSummary" class="rule-filter-summary" aria-live="polite">显示全部规则</span>
+        </div>
         <div class="rule-list-heading">
           <span id="activeRuleTitle">直连白名单</span>
           <button id="clearRulesButton" class="text-button danger-text" type="button" hidden>清空</button>

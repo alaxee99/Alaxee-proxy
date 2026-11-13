@@ -644,3 +644,26 @@ html.full-page .footer{margin-top:20px}
  .secondary-button, .settings-button, .status-permission-button, .rule-tab{animation:none!important;transition:none!important;transform:none!important}
  body::before{filter:none}
 }
+
+/* Rule manager: searchable lists and editable scope without removing/re-adding entries. */
+.rule-search-row{display:flex;align-items:end;gap:12px;margin:12px 0 5px}
+.rule-search-field{flex:1;min-width:0}
+.rule-search-field input{width:100%;min-width:0;height:36px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:rgba(5,10,26,.24);color:var(--ink);font-size:11px}
+.rule-search-field input:focus{border-color:rgba(177,162,255,.72);background:rgba(18,22,47,.52);box-shadow:0 0 0 3px rgba(157,139,255,.12);outline:none}
+.rule-filter-summary{flex:0 0 auto;padding-bottom:9px;color:var(--muted);font-size:9px;white-space:nowrap}
+.rule-item-actions{display:flex;align-items:center;gap:7px;flex:0 0 auto}
+.rule-scope-toggle{display:inline-flex;align-items:center;gap:4px;min-height:28px;padding:0 7px;border:1px solid var(--line);border-radius:8px;background:rgba(145,157,213,.07);color:var(--muted);font-size:9px;cursor:pointer}
+.rule-scope-toggle input{width:13px;height:13px;margin:0;accent-color:var(--accent)}
+.rule-scope-toggle:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+@media(prefers-color-scheme:light){
+  .rule-search-field input{background:rgba(255,255,255,.63)}
+  .rule-search-field input:focus{background:rgba(255,255,255,.92)}
+}
+@media(max-width:420px){
+  .rule-search-row{gap:7px}
+  .rule-filter-summary{font-size:8px}
+  .rule-item-actions{gap:5px}
+}
+@media(prefers-reduced-motion:reduce){
+  .rule-scope-toggle{transition:none!important}
+}

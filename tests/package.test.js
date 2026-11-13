@@ -127,14 +127,29 @@ test("popup brand mark follows the active page route with four distinct XEE silh
   assert.ok(css.includes("prefers-reduced-motion: reduce"));
 });
 
-test("adding current-page or manual domain rules requests optional per-tab URL permission", async () => {
+test("domain rule changes do not request tabs permission; only the explicit status control does", async () => {
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
   assert.ok(script.includes('ui.addCurrentDirect.addEventListener("click", () => {'));
   assert.ok(script.includes('ui.addCurrentProxy.addEventListener("click", () => {'));
   assert.ok(script.includes('ui.ruleForm.addEventListener("submit", (event) => {'));
+  assert.ok(script.includes('ui.statusPermissionButton.addEventListener("click", () => {'));
   assert.ok(script.includes('chrome.permissions.request({ permissions: ["tabs"] }'));
-  assert.ok(script.includes("tabsPermissionGranted === false"));
-  assert.ok(script.includes("启用逐网页显示"));
+  assert.doesNotMatch(script, /requestTabsPermissionAndRun|tabsPermissionGranted/);
+  const ruleActions = script.slice(script.indexOf('ui.addCurrentDirect.addEventListener'), script.indexOf('ui.includeSubdomains.addEventListener'));
+  assert.doesNotMatch(ruleActions, /permissions\.request/);
+});
+
+test("domain rule manager supports search and direct subdomain-scope editing", async () => {
+  const html = await readFile(path.join(root, "src/popup.html"), "utf8");
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const css = await readFile(path.join(root, "src/popup.css"), "utf8");
+  assert.ok(html.includes('id="ruleSearchInput"'));
+  assert.ok(html.includes('id="ruleFilterSummary"'));
+  assert.ok(script.includes('ui.ruleSearchInput.addEventListener("input"'));
+  assert.ok(script.includes("visibleEntries = query"));
+  assert.ok(script.includes("async function updateRuleSubdomains("));
+  assert.ok(script.includes('scopeInput.addEventListener("change"'));
+  assert.ok(css.includes(".rule-item-actions"));
 });
 
 test("toolbar reports unknown rather than the global mode when tabs permission is absent", async () => {
