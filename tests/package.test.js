@@ -297,3 +297,13 @@ test("clear-all requires explicit confirmation and does nothing for an empty lis
   assert.ok(clearAction.includes("if (!confirmed) return;"));
   assert.ok(clearAction.includes("${entries.length} 条规则"));
 });
+
+test("failed proxy apply uses a latest-snapshot field-aware rollback", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes("reconcileSettingsAfterApplyFailure({"));
+  assert.ok(script.includes('chrome.storage.local, "get", "settings"'));
+  assert.ok(script.includes("currentSettings: latestSettings"));
+  assert.ok(script.includes("attemptedSettings: next"));
+  assert.ok(script.includes("rollback.concurrentKeys.length"));
+  assert.doesNotMatch(script, /await saveSettings\(previousSettings\)/);
+});

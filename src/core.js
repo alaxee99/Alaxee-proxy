@@ -10,6 +10,39 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 const VALID_SCHEMES = new Set(["http", "socks5"]);
 const MAX_RULE_ENTRIES = 500;
+const SETTINGS_KEYS = ["mode", "host", "port", "scheme", "includeSubdomains", "whitelist", "blacklist"];
+
+function sameSettingValue(left, right) {
+  return JSON.stringify(left) === JSON.stringify(right);
+}
+
+/**
+ * Reconcile a failed proxy apply against the latest settings snapshot.
+ * Only fields still equal to this operation's attempted values are rolled back;
+ * fields changed by another view are retained and reported to the caller.
+ */
+export function reconcileSettingsAfterApplyFailure({
+  currentSettings,
+  previousSettings,
+  attemptedSettings
+}) {
+  const reconciled = { ...currentSettings };
+  const restoredKeys = [];
+  const concurrentKeys = [];
+
+  for (const key of SETTINGS_KEYS) {
+    if (sameSettingValue(previousSettings?.[key], attemptedSettings?.[key])) continue;
+
+    if (sameSettingValue(currentSettings?.[key], attemptedSettings?.[key])) {
+      reconciled[key] = previousSettings?.[key];
+      restoredKeys.push(key);
+    } else if (!sameSettingValue(currentSettings?.[key], previousSettings?.[key])) {
+      concurrentKeys.push(key);
+    }
+  }
+
+  return { settings: reconciled, restoredKeys, concurrentKeys };
+}
 
 export function normalizeHostname(value) {
   const host = String(value ?? "").trim().replace(/^\.+|\.+$/g, "").toLowerCase();

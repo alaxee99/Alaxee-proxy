@@ -9,6 +9,7 @@ import {
   isHostWhitelisted,
   normalizeBlacklist,
   normalizeWhitelist,
+  reconcileSettingsAfterApplyFailure,
   resolveTabRoute,
   validateProxySettings
 } from "./core.js";
@@ -711,12 +712,35 @@ async function applyMode(mode, overrides = {}) {
       });
     } catch (applyError) {
       try {
-        await saveSettings(previousSettings);
+        const stored = await chromeCall(chrome.storage.local, "get", "settings");
+        const raw = stored?.settings ?? {};
+        const latestSettings = {
+          ...DEFAULT_SETTINGS,
+          ...raw,
+          whitelist: normalizeWhitelist(raw.whitelist),
+          blacklist: normalizeBlacklist(raw.blacklist)
+        };
+        const rollback = reconcileSettingsAfterApplyFailure({
+          currentSettings: latestSettings,
+          previousSettings,
+          attemptedSettings: next
+        });
+        // Base the write on the newest persisted snapshot so this failed operation
+        // does not blindly replace unrelated changes made by another settings view.
+        settings = latestSettings;
+        await saveSettings(rollback.settings);
+        await readProxyState({ announceControlChange: false });
+        if (rollback.concurrentKeys.length) {
+          const labels = rollback.concurrentKeys.join("、");
+          throw new Error(
+            `Edge 拒绝了新代理设置；已恢复未被更改的字段，并保留另一页面更新的设置（${labels}）。请检查并重新应用。`
+          );
+        }
       } catch (rollbackError) {
         await readProxyState({ announceControlChange: false });
+        if (rollbackError.message.startsWith("Edge 拒绝了新代理设置；")) throw rollbackError;
         throw new Error(`Edge 未能应用新代理设置；本机设置回滚也失败：${rollbackError.message}`);
       }
-      await readProxyState({ announceControlChange: false });
       throw new Error(`Edge 未能应用新代理设置，已恢复原有本机配置：${applyError.message}`);
     }
 

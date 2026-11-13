@@ -14,6 +14,7 @@ import {
   normalizeBlacklist,
   normalizeHostname,
   normalizeWhitelist,
+  reconcileSettingsAfterApplyFailure,
   resolveDomainRoute,
   resolveGlobalRoute,
   resolveTabRoute,
@@ -231,4 +232,67 @@ test("reads only HTTP and HTTPS page hostnames", () => {
   assert.equal(getPageHostname("https://www.example.com/a?b=1"), "www.example.com");
   assert.equal(getPageHostname("edge://extensions"), null);
   assert.equal(getPageHostname("file:///C:/test.html"), null);
+});
+
+test("failed proxy apply rollback preserves unrelated settings saved by another view", () => {
+  const previous = {
+    ...BASE,
+    host: "127.0.0.1",
+    whitelist: [{ host: "old.example", includeSubdomains: true }]
+  };
+  const attempted = {
+    ...previous,
+    host: "127.0.0.2",
+    mode: "direct",
+    whitelist: [{ host: "old.example", includeSubdomains: true }, { host: "new.example", includeSubdomains: true }]
+  };
+  const current = {
+    ...attempted,
+    whitelist: [{ host: "old.example", includeSubdomains: true }, { host: "other-view.example", includeSubdomains: false }]
+  };
+
+  const result = reconcileSettingsAfterApplyFailure({
+    currentSettings: current,
+    previousSettings: previous,
+    attemptedSettings: attempted
+  });
+
+  assert.equal(result.settings.host, previous.host);
+  assert.equal(result.settings.mode, previous.mode);
+  assert.deepEqual(result.settings.whitelist, current.whitelist);
+  assert.deepEqual(result.restoredKeys, ["mode", "host"]);
+  assert.deepEqual(result.concurrentKeys, ["whitelist"]);
+});
+
+test("failed proxy apply rollback leaves concurrently changed attempted fields untouched", () => {
+  const previous = { ...BASE, mode: "clash", port: "7890" };
+  const attempted = { ...previous, mode: "direct", port: "8888" };
+  const current = { ...attempted, mode: "system", port: "9999" };
+
+  const result = reconcileSettingsAfterApplyFailure({
+    currentSettings: current,
+    previousSettings: previous,
+    attemptedSettings: attempted
+  });
+
+  assert.deepEqual(result.settings, current);
+  assert.deepEqual(result.restoredKeys, []);
+  assert.deepEqual(result.concurrentKeys, ["mode", "port"]);
+});
+
+test("failed proxy apply rollback does not rewrite settings untouched by the failed operation", () => {
+  const previous = { ...BASE, port: "7890" };
+  const attempted = { ...previous, port: "8888" };
+  const current = { ...attempted, includeSubdomains: false };
+
+  const result = reconcileSettingsAfterApplyFailure({
+    currentSettings: current,
+    previousSettings: previous,
+    attemptedSettings: attempted
+  });
+
+  assert.equal(result.settings.port, previous.port);
+  assert.equal(result.settings.includeSubdomains, false);
+  assert.deepEqual(result.restoredKeys, ["port"]);
+  assert.deepEqual(result.concurrentKeys, []);
 });
