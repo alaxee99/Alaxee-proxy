@@ -401,7 +401,6 @@ function syncSettingsFromStorage(changes, areaName) {
   syncRuleCounts();
   renderRules();
   renderCurrentPage();
-  void readProxyState({ announceControlChange: false });
 }
 
 async function getCurrentTab() {

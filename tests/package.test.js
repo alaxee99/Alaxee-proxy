@@ -252,7 +252,6 @@ test("popup synchronizes saved settings across contexts without overwriting endp
   assert.ok(handler.includes("document.activeElement !== ui.includeSubdomains"));
   assert.ok(handler.includes("renderRules()"));
   assert.ok(handler.includes("renderCurrentPage()"));
-  assert.ok(handler.includes("readProxyState({ announceControlChange: false })"));
   assert.ok(script.includes('input.addEventListener("input", () => { proxyConfigDirty = true; })'));
   assert.ok(script.includes("proxyConfigDirty = false;"));
 });
