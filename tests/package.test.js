@@ -155,7 +155,7 @@ test("domain rule manager supports search and direct subdomain-scope editing", a
 test("proxy panel distinguishes browser configuration from local Clash health and refreshes external changes", async () => {
   const html = await readFile(path.join(root, "src/popup.html"), "utf8");
   const script = await readFile(path.join(root, "src/popup.js"), "utf8");
-  assert.ok(html.includes("不代表 Clash / Mihomo 服务是否在线"));
+  assert.ok(html.includes("不代表本机 Clash / Mihomo 服务是否在线"));
   assert.ok(html.includes("保存并应用到 Edge"));
   assert.ok(script.includes('chrome.proxy.settings.onChange.addListener'));
   assert.ok(script.includes('controlled_by_other_extensions: "其他扩展控制"'));
