@@ -255,3 +255,25 @@ test("popup synchronizes saved settings across contexts without overwriting endp
   assert.ok(script.includes('input.addEventListener("input", () => { proxyConfigDirty = true; })'));
   assert.ok(script.includes("proxyConfigDirty = false;"));
 });
+
+test("proxy apply lock disables every local control that can mutate proxy routing", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const controlsStart = script.indexOf("function renderProxyControls()");
+  const controlsEnd = script.indexOf("async function persistWithoutApplying(", controlsStart);
+  assert.ok(controlsStart >= 0 && controlsEnd > controlsStart);
+  const controls = script.slice(controlsStart, controlsEnd);
+  for (const control of [
+    "ui.saveConnect.disabled = proxyApplyInFlight",
+    "ui.addRuleButton.disabled = proxyApplyInFlight",
+    "ui.clearRules.disabled = proxyApplyInFlight",
+    "ui.ruleHostInput.disabled = proxyApplyInFlight",
+    "ui.ruleIncludeSubdomains.disabled = proxyApplyInFlight"
+  ]) assert.ok(controls.includes(control), `missing busy lock: ${control}`);
+  assert.ok(controls.includes('document.documentElement.setAttribute("aria-busy", String(proxyApplyInFlight))'));
+  assert.ok(controls.includes("renderCurrentPage()"));
+  assert.ok(controls.includes("renderRules()"));
+  assert.ok(script.includes("scopeInput.disabled = proxyApplyInFlight"));
+  assert.ok(script.includes("remove.disabled = proxyApplyInFlight"));
+  assert.ok(script.includes("proxyApplyInFlight || whitelistExact"));
+  assert.ok(script.includes("proxyApplyInFlight || blacklistExact"));
+});

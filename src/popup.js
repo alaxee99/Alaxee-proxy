@@ -479,10 +479,11 @@ function renderCurrentPage() {
 
   ui.currentHost.textContent = currentHostname;
   ui.currentRoute.textContent = messages[route];
-  ui.addCurrentDirect.disabled = whitelistExact;
-  ui.addCurrentProxy.disabled = blacklistExact;
+  ui.addCurrentDirect.disabled = proxyApplyInFlight || whitelistExact;
+  ui.addCurrentProxy.disabled = proxyApplyInFlight || blacklistExact;
   ui.removeCurrentRule.hidden = !whitelistExact && !blacklistExact;
-  ui.includeSubdomains.disabled = whitelistExact || blacklistExact;
+  ui.removeCurrentRule.disabled = proxyApplyInFlight;
+  ui.includeSubdomains.disabled = proxyApplyInFlight || whitelistExact || blacklistExact;
 
   if (route === "system") {
     ui.siteHint.textContent = "系统代理模式会把规则暂时搁置；切回 Clash 或全局直连后规则会重新生效。";
@@ -582,6 +583,7 @@ function renderRules() {
     const scopeInput = document.createElement("input");
     scopeInput.type = "checkbox";
     scopeInput.checked = entry.includeSubdomains;
+    scopeInput.disabled = proxyApplyInFlight;
     scopeInput.setAttribute("aria-label", `同时匹配 ${entry.host} 的子域名`);
     scopeInput.addEventListener("change", () => {
       void updateRuleSubdomains(entry.host, activeRuleType, scopeInput.checked);
@@ -594,6 +596,7 @@ function renderRules() {
     remove.className = "remove-button";
     remove.type = "button";
     remove.textContent = "×";
+    remove.disabled = proxyApplyInFlight;
     remove.setAttribute("aria-label", `移除 ${entry.host}`);
     remove.addEventListener("click", () => removeDomainRule(entry.host, activeRuleType));
     actions.append(scopeLabel, remove);
@@ -654,6 +657,13 @@ function renderProxyControls() {
     button.disabled = proxyApplyInFlight;
   });
   ui.saveConnect.disabled = proxyApplyInFlight;
+  ui.addRuleButton.disabled = proxyApplyInFlight;
+  ui.clearRules.disabled = proxyApplyInFlight;
+  ui.ruleHostInput.disabled = proxyApplyInFlight;
+  ui.ruleIncludeSubdomains.disabled = proxyApplyInFlight;
+  document.documentElement.setAttribute("aria-busy", String(proxyApplyInFlight));
+  renderCurrentPage();
+  renderRules();
 }
 
 async function persistWithoutApplying(nextSettings, message) {
