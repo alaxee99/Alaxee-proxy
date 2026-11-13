@@ -101,7 +101,7 @@
       <section class="config-panel" aria-labelledby="configTitle">
         <div class="section-heading compact-heading">
           <div><div class="eyebrow">LOCAL CLASH / MIHOMO</div><h2 id="configTitle">连接设置</h2></div>
-          <span class="local-tag"><span></span>本机连接</span>
+          <span class="local-tag"><span></span>本机代理端点</span>
         </div>
         <div class="field-grid">
           <label class="field field-scheme"><span>代理协议</span>
@@ -113,8 +113,9 @@
           <label class="field field-host"><span>服务器地址</span><input id="hostInput" type="text" value="127.0.0.1" autocomplete="off" spellcheck="false" placeholder="127.0.0.1"></label>
           <label class="field field-port"><span>端口</span><input id="portInput" type="number" min="1" max="65535" step="1" value="7890" inputmode="numeric"></label>
         </div>
-        <button id="saveConnectButton" class="primary-button" type="button">保存并连接 Clash <span aria-hidden="true">→</span></button>
+        <button id="saveConnectButton" class="primary-button" type="button">保存并应用到 Edge <span aria-hidden="true">→</span></button>
         <p class="microcopy">Mixed Port 同时接受 SOCKS5 与 HTTP；默认使用 SOCKS5，不代表协议本身一定更快。端口以 Clash 当前配置为准。</p>
+        <p class="microcopy connection-boundary-note">顶部状态只反映 Edge 代理配置及控制权，不会探测本机 Clash / Mihomo 服务是否在线。</p>
       </section>
 
       <section class="site-panel" aria-labelledby="siteTitle">

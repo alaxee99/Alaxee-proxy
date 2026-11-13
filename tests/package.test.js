@@ -152,6 +152,20 @@ test("domain rule manager supports search and direct subdomain-scope editing", a
   assert.ok(css.includes(".rule-item-actions"));
 });
 
+test("proxy panel distinguishes browser configuration from local Clash health and refreshes external changes", async () => {
+  const html = await readFile(path.join(root, "src/popup.html"), "utf8");
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(html.includes("不代表 Clash / Mihomo 服务是否在线"));
+  assert.ok(html.includes("保存并应用到 Edge"));
+  assert.ok(script.includes('chrome.proxy.settings.onChange.addListener'));
+  assert.ok(script.includes('controlled_by_other_extensions: "其他扩展控制"'));
+  assert.ok(script.includes("Clash 路由已应用"));
+  assert.ok(script.includes("Edge 代理设置由 Alaxee Proxy 控制"));
+  const applyMode = script.slice(script.indexOf("async function applyMode("), script.indexOf("async function addDomainRule("));
+  assert.ok(applyMode.indexOf("await saveSettings(next)") < applyMode.indexOf('chrome.proxy.settings, "set"'));
+  assert.ok(applyMode.includes("await saveSettings(previousSettings)"));
+});
+
 test("toolbar reports unknown rather than the global mode when tabs permission is absent", async () => {
   const worker = await readFile(path.join(root, "background.js"), "utf8");
   assert.ok(worker.includes('await setActionState("unknown")'));

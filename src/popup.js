@@ -91,6 +91,7 @@ let activeView = "overview";
 let accountUser = null;
 let activeRuleType = "whitelist";
 let ruleSearchQuery = "";
+let proxyApplyInFlight = false;
 let noticeTimer = null;
 
 function sendNotice(message, kind = "success") {
@@ -572,8 +573,9 @@ function renderRules() {
   }
 }
 
-async function readProxyState() {
+async function readProxyState({ announceControlChange = true } = {}) {
   try {
+    const previousLevel = proxyStateSnapshot?.levelOfControl ?? null;
     const result = await chromeCall(chrome.proxy.settings, "get", { incognito: false });
     proxyStateSnapshot = result;
     const level = result?.levelOfControl ?? "unknown";
@@ -582,11 +584,27 @@ async function readProxyState() {
     activeMode = inferActiveMode(current, settings);
     renderModes();
     renderCurrentPage();
-    ui.stateText.textContent = label;
-    ui.statePill.className = `state-pill ${level === "controlled_by_this_extension" ? "state-good" : level === "not_controllable" || level === "controlled_by_other_extensions" ? "state-bad" : "state-neutral"}`;
 
-    if (level === "not_controllable" || level === "controlled_by_other_extensions") {
-      sendNotice("浏览器代理设置当前由其他扩展或管理策略控制，Alaxee Proxy 可能无法切换。", "error");
+    const ownershipLabels = {
+      controlled_by_other_extensions: "其他扩展控制",
+      not_controllable: "浏览器策略限制"
+    };
+    const stateLabel = ownershipLabels[level] ??
+      (level === "controlled_by_this_extension" && activeMode === "clash" ? "Clash 路由已应用" : label);
+    ui.stateText.textContent = stateLabel;
+    ui.statePill.className = `state-pill ${level === "controlled_by_this_extension" ? "state-good" : level === "not_controllable" || level === "controlled_by_other_extensions" ? "state-bad" : "state-neutral"}`;
+    ui.statePill.title = level === "controlled_by_this_extension"
+      ? "Edge 代理设置由 Alaxee Proxy 控制；此状态不检测本机 Clash / Mihomo 服务是否在线。"
+      : level === "controlled_by_other_extensions"
+        ? "Edge 代理设置当前由其他扩展控制，Alaxee Proxy 无法确认实际路由。"
+        : level === "not_controllable"
+          ? "Edge 代理设置受到浏览器或组织策略限制。"
+          : "当前代理设置可由 Alaxee Proxy 接管。";
+    ui.statePill.setAttribute("aria-label", stateLabel + "。" + ui.statePill.title);
+
+    if (announceControlChange && previousLevel !== level &&
+        (level === "not_controllable" || level === "controlled_by_other_extensions")) {
+      sendNotice("Edge 代理设置的控制权已发生变化：" + stateLabel + "。", "warning");
     }
     if (label === "其他代理配置" || label === "自动检测代理" || label === "其他 PAC 代理配置") {
       ui.statePill.className = "state-pill state-warn";
@@ -595,9 +613,17 @@ async function readProxyState() {
   } catch (error) {
     ui.stateText.textContent = "无法读取状态";
     ui.statePill.className = "state-pill state-bad";
+    ui.statePill.title = "读取 Edge 浏览器代理设置失败。";
     sendNotice(`读取浏览器代理状态失败：${error.message}`, "error");
     return null;
   }
+}
+
+function renderProxyControls() {
+  document.querySelectorAll("[data-mode]").forEach((button) => {
+    button.disabled = proxyApplyInFlight;
+  });
+  ui.saveConnect.disabled = proxyApplyInFlight;
 }
 
 async function persistWithoutApplying(nextSettings, message) {
@@ -612,6 +638,15 @@ async function persistWithoutApplying(nextSettings, message) {
 }
 
 async function applyMode(mode, overrides = {}) {
+  if (proxyApplyInFlight) throw new Error("另一项代理设置正在应用，请稍后重试。");
+  proxyApplyInFlight = true;
+  renderProxyControls();
+
+  const previousSettings = {
+    ...settings,
+    whitelist: [...settings.whitelist],
+    blacklist: [...settings.blacklist]
+  };
   const next = {
     ...settings,
     ...overrides,
@@ -620,16 +655,34 @@ async function applyMode(mode, overrides = {}) {
     blacklist: normalizeBlacklist(overrides.blacklist ?? settings.blacklist)
   };
 
-  const proxyConfig = buildChromeProxyConfig(next);
-  await chromeCall(chrome.proxy.settings, "set", {
-    value: proxyConfig,
-    scope: "regular"
-  });
-  await saveSettings(next);
-  activeMode = mode;
-  renderModes();
-  renderRules();
-  await readProxyState();
+  try {
+    const proxyConfig = buildChromeProxyConfig(next);
+    // Persist first. If the browser rejects the proxy update, restore the previous local settings.
+    await saveSettings(next);
+    try {
+      await chromeCall(chrome.proxy.settings, "set", {
+        value: proxyConfig,
+        scope: "regular"
+      });
+    } catch (applyError) {
+      try {
+        await saveSettings(previousSettings);
+      } catch (rollbackError) {
+        await readProxyState({ announceControlChange: false });
+        throw new Error(`Edge 未能应用新代理设置；本机设置回滚也失败：${rollbackError.message}`);
+      }
+      await readProxyState({ announceControlChange: false });
+      throw new Error(`Edge 未能应用新代理设置，已恢复原有本机配置：${applyError.message}`);
+    }
+
+    activeMode = mode;
+    renderModes();
+    renderRules();
+    await readProxyState({ announceControlChange: false });
+  } finally {
+    proxyApplyInFlight = false;
+    renderProxyControls();
+  }
 }
 
 async function addDomainRule(type, host, includeSubdomains = true) {
@@ -818,6 +871,10 @@ async function initialize() {
         sendNotice("已启用逐网页状态图标。", "success");
       });
     });
+  });
+
+  chrome.proxy.settings.onChange.addListener(() => {
+    void readProxyState();
   });
 
   ui.saveConnect.addEventListener("click", connectClash);
