@@ -598,7 +598,12 @@ function renderRules() {
     remove.textContent = "×";
     remove.disabled = proxyApplyInFlight;
     remove.setAttribute("aria-label", `移除 ${entry.host}`);
-    remove.addEventListener("click", () => removeDomainRule(entry.host, activeRuleType));
+    remove.addEventListener("click", () => {
+      void removeDomainRule(entry.host, activeRuleType).catch((error) => {
+        renderRules();
+        sendNotice(`移除规则失败：${error.message}`, "error");
+      });
+    });
     actions.append(scopeLabel, remove);
     item.append(detail, actions);
     ui.ruleList.append(item);
@@ -793,6 +798,14 @@ async function updateRuleSubdomains(host, type, includeSubdomains) {
 }
 
 async function clearActiveRules() {
+  const entries = getRuleList(activeRuleType);
+  if (!entries.length) return;
+  const listName = activeRuleType === "blacklist" ? "代理黑名单" : "直连白名单";
+  const confirmed = window.confirm(
+    `确定清空${listName}中的 ${entries.length} 条规则吗？此操作会立即更新本机设置。`
+  );
+  if (!confirmed) return;
+
   const key = activeRuleType === "blacklist" ? "blacklist" : "whitelist";
   const next = { [key]: [] };
   if (activeMode === "system" || !activeMode) {

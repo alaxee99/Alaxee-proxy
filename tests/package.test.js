@@ -277,3 +277,23 @@ test("proxy apply lock disables every local control that can mutate proxy routin
   assert.ok(script.includes("proxyApplyInFlight || whitelistExact"));
   assert.ok(script.includes("proxyApplyInFlight || blacklistExact"));
 });
+
+test("individual rule removal reports apply failures instead of leaking an unhandled rejection", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes('void removeDomainRule(entry.host, activeRuleType).catch((error) => {'));
+  assert.ok(script.includes('sendNotice(`移除规则失败：${error.message}`, "error")'));
+  assert.ok(script.includes("renderRules();"));
+});
+
+test("clear-all requires explicit confirmation and does nothing for an empty list", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const start = script.indexOf("async function clearActiveRules()");
+  const end = script.indexOf("async function addCurrentRule(", start);
+  assert.ok(start >= 0 && end > start);
+  const clearAction = script.slice(start, end);
+  assert.ok(clearAction.includes("const entries = getRuleList(activeRuleType)"));
+  assert.ok(clearAction.includes("if (!entries.length) return;"));
+  assert.ok(clearAction.includes("window.confirm("));
+  assert.ok(clearAction.includes("if (!confirmed) return;"));
+  assert.ok(clearAction.includes("${entries.length} 条规则"));
+});
