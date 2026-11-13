@@ -163,8 +163,16 @@ test("proxy panel distinguishes browser configuration from local Clash health an
   assert.ok(script.includes("Edge 代理设置由 Alaxee Proxy 控制"));
   assert.ok(script.includes("!['not_controllable', 'controlled_by_other_extensions'].includes(level)"));
   const applyMode = script.slice(script.indexOf("async function applyMode("), script.indexOf("async function addDomainRule("));
-  assert.ok(applyMode.indexOf("await saveSettings(next)") < applyMode.indexOf('chrome.proxy.settings, "set"'));
-  assert.ok(applyMode.includes("await saveSettings(previousSettings)"));
+  assert.ok(applyMode.includes("await saveSettings(next, { applyProxy: true })"));
+  assert.doesNotMatch(applyMode, /chrome\.proxy\.settings, "set"/);
+
+  const worker = await readFile(path.join(root, "background.js"), "utf8");
+  const mutation = worker.slice(worker.indexOf("async function mutateProxySettings("), worker.indexOf("async function readContext("));
+  const persistIndex = mutation.indexOf('chrome.storage.local, "set", { settings: merged.settings }');
+  const applyIndex = mutation.indexOf('chrome.proxy.settings, "set"');
+  const rollbackIndex = mutation.indexOf('chrome.storage.local, "set", { settings: previousSettings }');
+  assert.ok(persistIndex >= 0 && applyIndex > persistIndex, "persist before applying the proxy config");
+  assert.ok(rollbackIndex > applyIndex, "rollback saved settings only after Edge rejects the apply");
 });
 
 test("toolbar reports unknown rather than the global mode when tabs permission is absent", async () => {
