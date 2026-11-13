@@ -237,3 +237,22 @@ test("Edge package includes every background service-worker module", async () =>
     assert.ok(packager.includes(`"${modulePath}"`), `store package omits runtime module: ${modulePath}`);
   }
 });
+
+test("popup synchronizes saved settings across contexts without overwriting endpoint drafts", async () => {
+  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
+  assert.ok(script.includes("chrome.storage.onChanged.addListener(syncSettingsFromStorage)"));
+  const start = script.indexOf("function syncSettingsFromStorage(changes, areaName)");
+  const end = script.indexOf("async function getCurrentTab()", start);
+  assert.ok(start >= 0 && end > start, "storage synchronization handler is present");
+  const handler = script.slice(start, end);
+  assert.ok(handler.includes('areaName !== "local"'));
+  assert.ok(handler.includes("normalizeWhitelist(stored.whitelist)"));
+  assert.ok(handler.includes("normalizeBlacklist(stored.blacklist)"));
+  assert.ok(handler.includes("if (!proxyConfigDirty)"));
+  assert.ok(handler.includes("document.activeElement !== ui.includeSubdomains"));
+  assert.ok(handler.includes("renderRules()"));
+  assert.ok(handler.includes("renderCurrentPage()"));
+  assert.ok(handler.includes("readProxyState({ announceControlChange: false })"));
+  assert.ok(script.includes('input.addEventListener("input", () => { proxyConfigDirty = true; })'));
+  assert.ok(script.includes("proxyConfigDirty = false;"));
+});

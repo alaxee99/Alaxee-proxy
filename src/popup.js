@@ -92,6 +92,7 @@ let accountUser = null;
 let activeRuleType = "whitelist";
 let ruleSearchQuery = "";
 let proxyApplyInFlight = false;
+let proxyConfigDirty = false;
 let noticeTimer = null;
 
 function sendNotice(message, kind = "success") {
@@ -372,6 +373,35 @@ async function saveSettings(nextSettings) {
       sendNotice(`规则已保存在本机，但云同步队列未更新：${error.message}`, "warning");
     }
   }
+}
+
+
+function syncSettingsFromStorage(changes, areaName) {
+  if (areaName !== "local" || !changes?.settings) return;
+
+  const raw = changes.settings.newValue;
+  const stored = raw && typeof raw === "object" ? raw : {};
+  settings = {
+    ...DEFAULT_SETTINGS,
+    ...stored,
+    whitelist: normalizeWhitelist(stored.whitelist),
+    blacklist: normalizeBlacklist(stored.blacklist)
+  };
+
+  // Preserve an in-progress endpoint draft in this page while refreshing saved state.
+  if (!proxyConfigDirty) {
+    ui.host.value = settings.host;
+    ui.port.value = settings.port;
+    ui.scheme.value = settings.scheme;
+  }
+  if (document.activeElement !== ui.includeSubdomains) {
+    ui.includeSubdomains.checked = settings.includeSubdomains !== false;
+  }
+
+  syncRuleCounts();
+  renderRules();
+  renderCurrentPage();
+  void readProxyState({ announceControlChange: false });
 }
 
 async function getCurrentTab() {
@@ -794,6 +824,7 @@ async function connectClash() {
   try {
     validateProxySettings(config);
     await applyMode("clash", config);
+    proxyConfigDirty = false;
     sendNotice("Clash 地址和端口已保存，代理规则已应用到 Edge。", "success");
   } catch (error) {
     sendNotice(`连接设置未能应用：${error.message}`, "error");
@@ -813,6 +844,7 @@ function renderStatusPermission() {
 async function initialize() {
   try {
     await loadSettings();
+    chrome.storage.onChanged.addListener(syncSettingsFromStorage);
     await loadAccount();
     switchRuleType("whitelist");
     renderStatusPermission();
@@ -878,6 +910,9 @@ async function initialize() {
     void readProxyState();
   });
 
+  [ui.host, ui.port, ui.scheme].forEach((input) => {
+    input.addEventListener("input", () => { proxyConfigDirty = true; });
+  });
   ui.saveConnect.addEventListener("click", connectClash);
   ui.openSettings.addEventListener("click", async () => {
     try {
