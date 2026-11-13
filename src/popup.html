@@ -12,45 +12,43 @@
     <header class="topbar">
       <div class="brand-lockup">
         <div class="brand-mark" id="brandMark" data-route="unknown" role="img" aria-label="当前页面状态：状态未知">
-          <svg viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+          <svg viewBox="0 0 64 64" aria-hidden="true" focusable="false">
             <defs>
-              <linearGradient id="xee-gradient" x1="9" y1="9" x2="41" y2="40">
-                <stop stop-color="#FFD88A"/><stop offset=".48" stop-color="#D99CFF"/><stop offset="1" stop-color="#69DDF2"/>
-              </linearGradient>
-              <linearGradient id="orbit-gradient" x1="7" y1="39" x2="43" y2="13">
-                <stop stop-color="#8D8CFF"/><stop offset=".55" stop-color="#F2BC9B"/><stop offset="1" stop-color="#8AE8FF"/>
-              </linearGradient>
-              <linearGradient id="direct-gradient" x1="7" y1="39" x2="44" y2="7">
-                <stop stop-color="#8D8CFF"/><stop offset=".48" stop-color="#D99CFF"/><stop offset="1" stop-color="#69DDF2"/>
-              </linearGradient>
+              <linearGradient id="alaxee-core" x1="12" y1="11" x2="53" y2="52" gradientUnits="userSpaceOnUse"><stop stop-color="#FFE0A0"/><stop offset=".42" stop-color="#C59BFF"/><stop offset="1" stop-color="#67DFF2"/></linearGradient>
+              <linearGradient id="alaxee-orbit" x1="7" y1="54" x2="57" y2="9" gradientUnits="userSpaceOnUse"><stop stop-color="#908BFF"/><stop offset=".52" stop-color="#D7A7E8"/><stop offset="1" stop-color="#77E2F3"/></linearGradient>
+              <linearGradient id="alaxee-flow" x1="8" y1="51" x2="56" y2="9" gradientUnits="userSpaceOnUse"><stop stop-color="#958CFF"/><stop offset=".55" stop-color="#C7A0FF"/><stop offset="1" stop-color="#70E2F3"/></linearGradient>
             </defs>
-            <g class="route-shape route-clash">
-              <path class="route-orbit" d="M7.7 29.5C8.5 17.4 19.1 7.4 31.5 9.1c12.3 1.7 14.7 14.8 7.6 24.8-7.5 10.6-24 10.7-30.5.6-1.3-1.8-1.7-3.6-.9-5Z"/>
-              <circle class="route-node node-one" cx="8.6" cy="29.7" r="3"/>
-              <circle class="route-node node-two" cx="23.9" cy="41.1" r="3"/>
-              <circle class="route-node node-three" cx="40.1" cy="18.2" r="3.15"/>
+            <g class="route-shape route-clash" fill="none" stroke="url(#alaxee-orbit)" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round">
+              <path class="alaxee-route" d="M9 39C10.2 22.5 22 9.5 37.5 11.5C52.2 13.4 59.3 27 52 40.4C44.8 53.3 24.6 56.2 12.8 45.3"/>
+              <circle cx="9.5" cy="39" r="3.2" fill="#AFA7FF" stroke="#F5F2FF" stroke-width="1"/>
+              <circle cx="32" cy="53" r="3.2" fill="#D4A8EF" stroke="#F5F2FF" stroke-width="1"/>
+              <circle cx="54" cy="25" r="3.2" fill="#78DFF2" stroke="#F5F2FF" stroke-width="1"/>
             </g>
             <g class="route-shape route-direct">
-              <path class="direct-path" d="M6.8 37.1c7.9 4.5 19 2 24.3-11.1 4.4-10.7 8-15.5 13.2-20.1"/>
-              <path class="direct-arrow" d="m36.8 6.2 7.3-.3-.2 7.3"/>
-              <circle class="route-node" cx="7.3" cy="37.2" r="1.8"/>
+              <path class="alaxee-route" d="M9 50C20 54 29 48 36 33C41 23 47 16 56 9" fill="none" stroke="url(#alaxee-flow)" stroke-width="4.5" stroke-linecap="round"/>
+              <path d="M46.5 9.5H56V19" fill="none" stroke="#82E6F7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="9.5" cy="50" r="2.4" fill="#B8B0FF"/>
             </g>
             <g class="route-shape route-system">
-              <path class="system-loop" d="M6 24C6 7 18 6 24 24s18 17 18 0S30 6 24 24 6 41 6 24Z"/>
-              <circle class="route-node" cx="6.2" cy="24" r="2.6"/><circle class="route-node" cx="41.8" cy="24" r="2.6"/>
+              <path class="alaxee-route" d="M7 32C7 15 23 14 32 32C41 50 57 49 57 32C57 15 41 14 32 32C23 50 7 49 7 32Z" fill="none" stroke="url(#alaxee-orbit)" stroke-width="4.1" stroke-linecap="round" stroke-linejoin="round"/>
+              <circle cx="7.5" cy="32" r="3" fill="#B8B0FF"/><circle cx="56.5" cy="32" r="3" fill="#82E6F7"/>
             </g>
-            <g class="route-shape route-unknown">
-              <path class="unknown-orbit" d="M7.5 29.5C7 21.1 13.6 11.8 23 8.8M31.3 8.8c6.8 2.3 10.5 8.1 10.2 14.7M39.5 30.2c-3.9 7.5-12.3 12-20.7 10.1M11.3 37.1Q8.5 34.7 7.6 31"/>
-              <path class="unknown-signal" d="m26.6 5.5 4.1 4.1-4.1 4.1-4.1-4.1Z"/><circle class="unknown-halo" cx="26.6" cy="9.6" r="6.2"/>
+            <g class="route-shape route-unknown" fill="none" stroke="url(#alaxee-orbit)" stroke-width="4" stroke-linecap="round">
+              <path d="M9 39C8.5 29 14 19 23 14"/><path d="M40 12.5C50 16 56 25 55 34"/><path d="M51 44C42 54 29 57 19 51"/><path d="M11.5 46.5L9 42"/>
+              <circle cx="32" cy="11" r="7" fill="#F3B36C" fill-opacity=".16" stroke="none"/>
+              <path class="alaxee-warning" d="M32 6.2L36.8 11 32 15.8 27.2 11Z" fill="#FFD18C" stroke="#FFF0D5" stroke-width="1"/>
             </g>
-            <path class="xee-core" d="M13 12.5 35 35.5M35 12.5 13 35.5"/>
-            <path class="xee-flare" d="M37.2 7.2v6.1m-3.05-3.05h6.1"/><circle class="xee-star" cx="37.2" cy="10.25" r="1.7"/>
-            <path class="xee-glint" d="M7.5 13.2c1.4-2 3.2-3.15 5.45-3.7"/>
+            <g class="alaxee-monogram" fill="none" stroke="url(#alaxee-core)" stroke-linecap="round" stroke-linejoin="round">
+              <path class="alaxee-a" d="M15 50C21.5 33 28.5 14 32.5 12C36.5 14 43.5 33 50 50" stroke-width="6.2"/>
+              <path class="alaxee-crossbar" d="M21.5 36C29 32.4 37.5 32.4 45 36" stroke-width="4.6"/>
+            </g>
+            <path class="alaxee-flare" d="M48 8.5V16.5M44 12.5H52"/><circle class="alaxee-star" cx="48" cy="12.5" r="2"/>
+            <path class="alaxee-glint" d="M10.5 18.5C12 16 14 14 16.6 12.8"/>
           </svg>
         </div>
         <div>
           <div class="brand-name">ALAXEE <span>PROXY</span></div>
-          <div class="brand-caption">轻量浏览器代理控制</div>
+          <div class="brand-caption">本机路由 · 动态状态</div>
         </div>
       </div>
       <div class="header-actions">
