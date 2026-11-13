@@ -711,6 +711,7 @@ async function applyMode(mode, overrides = {}) {
         scope: "regular"
       });
     } catch (applyError) {
+      let rollback;
       try {
         const stored = await chromeCall(chrome.storage.local, "get", "settings");
         const raw = stored?.settings ?? {};
@@ -720,26 +721,34 @@ async function applyMode(mode, overrides = {}) {
           whitelist: normalizeWhitelist(raw.whitelist),
           blacklist: normalizeBlacklist(raw.blacklist)
         };
-        const rollback = reconcileSettingsAfterApplyFailure({
+        rollback = reconcileSettingsAfterApplyFailure({
           currentSettings: latestSettings,
           previousSettings,
           attemptedSettings: next
         });
-        // Base the write on the newest persisted snapshot so this failed operation
-        // does not blindly replace unrelated changes made by another settings view.
+        // Reconcile from the latest snapshot instead of writing the stale full snapshot.
+        // chrome.storage.local has no atomic compare-and-swap, so a final narrow race remains.
         settings = latestSettings;
         await saveSettings(rollback.settings);
-        await readProxyState({ announceControlChange: false });
-        if (rollback.concurrentKeys.length) {
-          const labels = rollback.concurrentKeys.join("、");
-          throw new Error(
-            `Edge 拒绝了新代理设置；已恢复未被更改的字段，并保留另一页面更新的设置（${labels}）。请检查并重新应用。`
-          );
-        }
       } catch (rollbackError) {
         await readProxyState({ announceControlChange: false });
-        if (rollbackError.message.startsWith("Edge 拒绝了新代理设置；")) throw rollbackError;
         throw new Error(`Edge 未能应用新代理设置；本机设置回滚也失败：${rollbackError.message}`);
+      }
+      await readProxyState({ announceControlChange: false });
+      if (rollback.concurrentKeys.length) {
+        const fieldLabels = {
+          mode: "代理模式",
+          host: "代理地址",
+          port: "代理端口",
+          scheme: "代理协议",
+          includeSubdomains: "默认子域名选项",
+          whitelist: "直连白名单",
+          blacklist: "代理黑名单"
+        };
+        const labels = rollback.concurrentKeys.map((key) => fieldLabels[key] ?? key).join("、");
+        throw new Error(
+          `Edge 拒绝了新代理设置；已恢复未被更改的字段，并保留其他页面更新的设置（${labels}）。请检查并重新应用。`
+        );
       }
       throw new Error(`Edge 未能应用新代理设置，已恢复原有本机配置：${applyError.message}`);
     }

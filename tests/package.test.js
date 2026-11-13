@@ -305,5 +305,8 @@ test("failed proxy apply uses a latest-snapshot field-aware rollback", async () 
   assert.ok(script.includes("currentSettings: latestSettings"));
   assert.ok(script.includes("attemptedSettings: next"));
   assert.ok(script.includes("rollback.concurrentKeys.length"));
+  assert.ok(script.includes('host: "代理地址"'));
+  assert.ok(script.includes('whitelist: "直连白名单"'));
+  assert.ok(script.includes("chrome.storage.local has no atomic compare-and-swap"));
   assert.doesNotMatch(script, /await saveSettings\(previousSettings\)/);
 });
