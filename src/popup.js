@@ -9,7 +9,6 @@ import {
   isHostWhitelisted,
   normalizeBlacklist,
   normalizeWhitelist,
-  reconcileSettingsAfterApplyFailure,
   resolveTabRoute,
   validateProxySettings
 } from "./core.js";
@@ -346,34 +345,48 @@ async function loadSettings() {
   renderModes();
 }
 
-async function saveSettings(nextSettings) {
-  const previousSettings = settings;
+async function saveSettings(nextSettings, { applyProxy = false } = {}) {
+  const baseSettings = {
+    ...settings,
+    whitelist: [...settings.whitelist],
+    blacklist: [...settings.blacklist]
+  };
   const next = {
     ...settings,
     ...nextSettings,
     whitelist: normalizeWhitelist(nextSettings.whitelist ?? settings.whitelist),
     blacklist: normalizeBlacklist(nextSettings.blacklist ?? settings.blacklist)
   };
-  const syncOperations = buildRuleSyncOperations(previousSettings, next);
-  await chromeCall(chrome.storage.local, "set", { settings: next });
-  settings = next;
+  const response = await sendAccountMessage({
+    type: applyProxy ? "ALAXEE_PROXY_SETTINGS_APPLY" : "ALAXEE_PROXY_SETTINGS_SAVE",
+    baseSettings,
+    proposedSettings: next
+  });
+  if (!response.ok || !response.settings) {
+    throw new Error(response.error || "代理设置未能保存。");
+  }
+
+  const previousSettings = response.previousSettings ?? baseSettings;
+  settings = response.settings;
   syncRuleCounts();
 
+  const syncOperations = buildRuleSyncOperations(previousSettings, settings);
   if (syncOperations.length && accountUser) {
     try {
-      const response = await sendAccountMessage({
+      const syncResponse = await sendAccountMessage({
         type: "ALAXEE_PROXY_RULE_SYNC_ENQUEUE",
         operations: syncOperations
       });
-      if (!response.ok) {
-        sendNotice(`规则已保存在本机，但云同步队列未更新：${response.error || "未知错误"}`, "warning");
-      } else if (response.status?.pendingCount > 0) {
-        ui.accountSyncStatus.textContent = `有 ${response.status.pendingCount} 条规则等待云端同步。`;
+      if (!syncResponse.ok) {
+        sendNotice(`规则已保存在本机，但云同步队列未更新：${syncResponse.error || "未知错误"}`, "warning");
+      } else if (syncResponse.status?.pendingCount > 0) {
+        ui.accountSyncStatus.textContent = `有 ${syncResponse.status.pendingCount} 条规则等待云端同步。`;
       }
     } catch (error) {
       sendNotice(`规则已保存在本机，但云同步队列未更新：${error.message}`, "warning");
     }
   }
+  return response;
 }
 
 
@@ -688,11 +701,6 @@ async function applyMode(mode, overrides = {}) {
   proxyApplyInFlight = true;
   renderProxyControls();
 
-  const previousSettings = {
-    ...settings,
-    whitelist: [...settings.whitelist],
-    blacklist: [...settings.blacklist]
-  };
   const next = {
     ...settings,
     ...overrides,
@@ -702,58 +710,8 @@ async function applyMode(mode, overrides = {}) {
   };
 
   try {
-    const proxyConfig = buildChromeProxyConfig(next);
-    // Persist first. If the browser rejects the proxy update, restore the previous local settings.
-    await saveSettings(next);
-    try {
-      await chromeCall(chrome.proxy.settings, "set", {
-        value: proxyConfig,
-        scope: "regular"
-      });
-    } catch (applyError) {
-      let rollback;
-      try {
-        const stored = await chromeCall(chrome.storage.local, "get", "settings");
-        const raw = stored?.settings ?? {};
-        const latestSettings = {
-          ...DEFAULT_SETTINGS,
-          ...raw,
-          whitelist: normalizeWhitelist(raw.whitelist),
-          blacklist: normalizeBlacklist(raw.blacklist)
-        };
-        rollback = reconcileSettingsAfterApplyFailure({
-          currentSettings: latestSettings,
-          previousSettings,
-          attemptedSettings: next
-        });
-        // Reconcile from the latest snapshot instead of writing the stale full snapshot.
-        // chrome.storage.local has no atomic compare-and-swap, so a final narrow race remains.
-        settings = latestSettings;
-        await saveSettings(rollback.settings);
-      } catch (rollbackError) {
-        await readProxyState({ announceControlChange: false });
-        throw new Error(`Edge 未能应用新代理设置；本机设置回滚也失败：${rollbackError.message}`);
-      }
-      await readProxyState({ announceControlChange: false });
-      if (rollback.concurrentKeys.length) {
-        const fieldLabels = {
-          mode: "代理模式",
-          host: "代理地址",
-          port: "代理端口",
-          scheme: "代理协议",
-          includeSubdomains: "默认子域名选项",
-          whitelist: "直连白名单",
-          blacklist: "代理黑名单"
-        };
-        const labels = rollback.concurrentKeys.map((key) => fieldLabels[key] ?? key).join("、");
-        throw new Error(
-          `Edge 拒绝了新代理设置；已恢复未被更改的字段，并保留其他页面更新的设置（${labels}）。请检查并重新应用。`
-        );
-      }
-      throw new Error(`Edge 未能应用新代理设置，已恢复原有本机配置：${applyError.message}`);
-    }
-
-    activeMode = mode;
+    await saveSettings(next, { applyProxy: true });
+    activeMode = settings.mode;
     renderModes();
     renderRules();
     await readProxyState({ announceControlChange: false });

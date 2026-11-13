@@ -14,7 +14,7 @@ import {
   normalizeBlacklist,
   normalizeHostname,
   normalizeWhitelist,
-  reconcileSettingsAfterApplyFailure,
+  mergeConcurrentSettings,
   resolveDomainRoute,
   resolveGlobalRoute,
   resolveTabRoute,
@@ -234,65 +234,116 @@ test("reads only HTTP and HTTPS page hostnames", () => {
   assert.equal(getPageHostname("file:///C:/test.html"), null);
 });
 
-test("failed proxy apply rollback preserves unrelated settings saved by another view", () => {
-  const previous = {
+
+test("concurrent settings merge preserves edits to different domain hosts", () => {
+  const base = {
     ...BASE,
-    host: "127.0.0.1",
-    whitelist: [{ host: "old.example", includeSubdomains: true }]
+    whitelist: [{ host: "base.example", includeSubdomains: true }],
+    blacklist: []
   };
-  const attempted = {
-    ...previous,
-    host: "127.0.0.2",
-    mode: "direct",
-    whitelist: [{ host: "old.example", includeSubdomains: true }, { host: "new.example", includeSubdomains: true }]
+  const proposed = {
+    ...base,
+    whitelist: [...base.whitelist, { host: "popup.example", includeSubdomains: false }]
   };
   const current = {
-    ...attempted,
-    whitelist: [{ host: "old.example", includeSubdomains: true }, { host: "other-view.example", includeSubdomains: false }]
+    ...base,
+    whitelist: [...base.whitelist, { host: "full-page.example", includeSubdomains: true }]
   };
 
-  const result = reconcileSettingsAfterApplyFailure({
+  const result = mergeConcurrentSettings({
     currentSettings: current,
-    previousSettings: previous,
-    attemptedSettings: attempted
+    baseSettings: base,
+    proposedSettings: proposed
   });
 
-  assert.equal(result.settings.host, previous.host);
-  assert.equal(result.settings.mode, previous.mode);
+  assert.deepEqual(result.conflicts, []);
+  assert.deepEqual(result.settings.whitelist.map((entry) => entry.host).sort(), [
+    "base.example", "full-page.example", "popup.example"
+  ]);
+});
+
+test("concurrent edits to the same domain rule are rejected without overwriting", () => {
+  const base = {
+    ...BASE,
+    whitelist: [{ host: "shared.example", includeSubdomains: true }]
+  };
+  const proposed = {
+    ...base,
+    whitelist: [{ host: "shared.example", includeSubdomains: false }]
+  };
+  const current = {
+    ...base,
+    whitelist: [],
+    blacklist: [{ host: "shared.example", includeSubdomains: true }]
+  };
+
+  const result = mergeConcurrentSettings({
+    currentSettings: current,
+    baseSettings: base,
+    proposedSettings: proposed
+  });
+
+  assert.deepEqual(result.conflicts, ["rule:shared.example"]);
+  assert.deepEqual(result.settings.blacklist, current.blacklist);
   assert.deepEqual(result.settings.whitelist, current.whitelist);
-  assert.deepEqual(result.restoredKeys, ["mode", "host"]);
-  assert.deepEqual(result.concurrentKeys, ["whitelist"]);
 });
 
-test("failed proxy apply rollback leaves concurrently changed attempted fields untouched", () => {
-  const previous = { ...BASE, mode: "clash", port: "7890" };
-  const attempted = { ...previous, mode: "direct", port: "8888" };
-  const current = { ...attempted, mode: "system", port: "9999" };
+test("concurrent changes to different scalar settings merge independently", () => {
+  const base = { ...BASE, host: "127.0.0.1", port: "7890" };
+  const proposed = { ...base, port: "8888" };
+  const current = { ...base, host: "127.0.0.2" };
 
-  const result = reconcileSettingsAfterApplyFailure({
+  const result = mergeConcurrentSettings({
     currentSettings: current,
-    previousSettings: previous,
-    attemptedSettings: attempted
+    baseSettings: base,
+    proposedSettings: proposed
   });
 
-  assert.deepEqual(result.settings, current);
-  assert.deepEqual(result.restoredKeys, []);
-  assert.deepEqual(result.concurrentKeys, ["mode", "port"]);
+  assert.deepEqual(result.conflicts, []);
+  assert.equal(result.settings.host, "127.0.0.2");
+  assert.equal(result.settings.port, "8888");
 });
 
-test("failed proxy apply rollback does not rewrite settings untouched by the failed operation", () => {
-  const previous = { ...BASE, port: "7890" };
-  const attempted = { ...previous, port: "8888" };
-  const current = { ...attempted, includeSubdomains: false };
+test("concurrent edits to the same scalar setting are rejected", () => {
+  const base = { ...BASE, mode: "clash" };
+  const proposed = { ...base, mode: "direct" };
+  const current = { ...base, mode: "system" };
 
-  const result = reconcileSettingsAfterApplyFailure({
+  const result = mergeConcurrentSettings({
     currentSettings: current,
-    previousSettings: previous,
-    attemptedSettings: attempted
+    baseSettings: base,
+    proposedSettings: proposed
   });
 
-  assert.equal(result.settings.port, previous.port);
-  assert.equal(result.settings.includeSubdomains, false);
-  assert.deepEqual(result.restoredKeys, ["port"]);
-  assert.deepEqual(result.concurrentKeys, []);
+  assert.deepEqual(result.conflicts, ["mode"]);
+  assert.equal(result.settings.mode, "system");
+});
+
+test("merge applies rule deletion without deleting a different concurrently added host", () => {
+  const base = {
+    ...BASE,
+    whitelist: [
+      { host: "remove.example", includeSubdomains: true },
+      { host: "keep.example", includeSubdomains: true }
+    ]
+  };
+  const proposed = {
+    ...base,
+    whitelist: [{ host: "keep.example", includeSubdomains: true }]
+  };
+  const current = {
+    ...base,
+    whitelist: [...base.whitelist, { host: "concurrent.example", includeSubdomains: false }]
+  };
+
+  const result = mergeConcurrentSettings({
+    currentSettings: current,
+    baseSettings: base,
+    proposedSettings: proposed
+  });
+
+  assert.deepEqual(result.conflicts, []);
+  assert.deepEqual(result.settings.whitelist.map((entry) => entry.host).sort(), [
+    "concurrent.example", "keep.example"
+  ]);
 });

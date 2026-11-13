@@ -7,6 +7,8 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "./src/supabase-config.js
 
 import {
   DEFAULT_SETTINGS,
+  buildChromeProxyConfig,
+  mergeConcurrentSettings,
   normalizeBlacklist,
   normalizeWhitelist,
   resolveGlobalRoute,
@@ -122,6 +124,90 @@ function chromeCall(target, method, ...args) {
     } catch (error) {
       reject(error);
     }
+  });
+}
+
+let proxySettingsMutationQueue = Promise.resolve();
+
+function serializeProxySettingsMutation(operation) {
+  const result = proxySettingsMutationQueue.then(operation, operation);
+  proxySettingsMutationQueue = result.catch(() => {});
+  return result;
+}
+
+async function readStoredProxySettings() {
+  const stored = await chromeCall(chrome.storage.local, "get", "settings");
+  const raw = stored?.settings ?? {};
+  return {
+    ...DEFAULT_SETTINGS,
+    ...raw,
+    whitelist: normalizeWhitelist(raw.whitelist),
+    blacklist: normalizeBlacklist(raw.blacklist)
+  };
+}
+
+function describeSettingsConflicts(conflicts) {
+  const labels = {
+    mode: "代理模式",
+    host: "代理地址",
+    port: "代理端口",
+    scheme: "代理协议",
+    includeSubdomains: "默认子域名选项"
+  };
+  return conflicts.map((key) => key.startsWith("rule:")
+    ? `域名规则 ${key.slice(5)}`
+    : (labels[key] ?? key)).join("、");
+}
+
+async function mutateProxySettings(message) {
+  return serializeProxySettingsMutation(async () => {
+    const baseSettings = message?.baseSettings;
+    const proposedSettings = message?.proposedSettings;
+    if (!baseSettings || !proposedSettings ||
+        typeof baseSettings !== "object" || typeof proposedSettings !== "object") {
+      throw new Error("代理设置更新请求无效；请刷新设置页面后重试。");
+    }
+
+    const previousSettings = await readStoredProxySettings();
+    const merged = mergeConcurrentSettings({
+      currentSettings: previousSettings,
+      baseSettings,
+      proposedSettings
+    });
+    if (merged.conflicts.length) {
+      throw new Error(
+        `设置已在另一个页面发生变化，本次操作未覆盖冲突内容（${describeSettingsConflicts(merged.conflicts)}）。请重新检查当前设置后重试。`
+      );
+    }
+
+    const applyProxy = message.type === "ALAXEE_PROXY_SETTINGS_APPLY";
+    const proxyConfig = applyProxy ? buildChromeProxyConfig(merged.settings) : null;
+    await chromeCall(chrome.storage.local, "set", { settings: merged.settings });
+
+    if (applyProxy) {
+      try {
+        await chromeCall(chrome.proxy.settings, "set", {
+          value: proxyConfig,
+          scope: "regular"
+        });
+      } catch (applyError) {
+        try {
+          // All popup-originated settings writes are serialized through this worker queue.
+          await chromeCall(chrome.storage.local, "set", { settings: previousSettings });
+        } catch (rollbackError) {
+          throw new Error(
+            `Edge 拒绝了代理设置；后台也无法恢复此前的本机设置：${rollbackError.message}`
+          );
+        }
+        throw new Error(`Edge 未能应用代理设置，已恢复此前的本机设置：${applyError.message}`);
+      }
+    }
+
+    return {
+      previousSettings,
+      settings: merged.settings,
+      applied: applyProxy
+    };
   });
 }
 
@@ -383,6 +469,13 @@ try {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (sender.id !== chrome.runtime.id) return;
 
+  if (message?.type === "ALAXEE_PROXY_SETTINGS_SAVE" ||
+      message?.type === "ALAXEE_PROXY_SETTINGS_APPLY") {
+    mutateProxySettings(message)
+      .then((result) => sendResponse({ ok: true, ...result }))
+      .catch((error) => sendResponse({ ok: false, error: error?.message ?? "proxy_settings_update_failed" }));
+    return true;
+  }
   if (message?.type === "ALAXEE_PROXY_RULE_SYNC_STATUS") {
     getRuleSyncSnapshot()
       .then((status) => sendResponse({ ok: true, status }))

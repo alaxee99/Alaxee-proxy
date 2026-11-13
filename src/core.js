@@ -10,38 +10,91 @@ export const DEFAULT_SETTINGS = Object.freeze({
 
 const VALID_SCHEMES = new Set(["http", "socks5"]);
 const MAX_RULE_ENTRIES = 500;
-const SETTINGS_KEYS = ["mode", "host", "port", "scheme", "includeSubdomains", "whitelist", "blacklist"];
+const MERGED_SETTINGS_FIELDS = ["mode", "host", "port", "scheme", "includeSubdomains"];
 
 function sameSettingValue(left, right) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
+function ruleMap(settings) {
+  const rules = new Map();
+  for (const entry of normalizeWhitelist(settings?.whitelist)) {
+    rules.set(entry.host, { ruleType: "whitelist", includeSubdomains: entry.includeSubdomains });
+  }
+  for (const entry of normalizeBlacklist(settings?.blacklist)) {
+    rules.set(entry.host, { ruleType: "blacklist", includeSubdomains: entry.includeSubdomains });
+  }
+  return rules;
+}
+
+function sameRule(left, right) {
+  if (!left && !right) return true;
+  if (!left || !right) return false;
+  return left.ruleType === right.ruleType &&
+    left.includeSubdomains === right.includeSubdomains;
+}
+
 /**
- * Reconcile a failed proxy apply against the latest settings snapshot.
- * Only fields still equal to this operation's attempted values are rolled back;
- * fields changed by another view are retained and reported to the caller.
+ * Merge a popup settings edit against the latest stored snapshot.
+ * Scalar fields use conflict detection; domain rules merge independently by host.
+ * Conflicting edits to the same field or host are rejected instead of overwritten.
  */
-export function reconcileSettingsAfterApplyFailure({
-  currentSettings,
-  previousSettings,
-  attemptedSettings
-}) {
-  const reconciled = { ...currentSettings };
-  const restoredKeys = [];
-  const concurrentKeys = [];
+export function mergeConcurrentSettings({ currentSettings, baseSettings, proposedSettings }) {
+  if (!currentSettings || !baseSettings || !proposedSettings ||
+      typeof currentSettings !== "object" || typeof baseSettings !== "object" ||
+      typeof proposedSettings !== "object") {
+    throw new Error("代理设置更新缺少有效的基准或目标快照。");
+  }
 
-  for (const key of SETTINGS_KEYS) {
-    if (sameSettingValue(previousSettings?.[key], attemptedSettings?.[key])) continue;
+  const merged = { ...currentSettings };
+  const conflicts = [];
 
-    if (sameSettingValue(currentSettings?.[key], attemptedSettings?.[key])) {
-      reconciled[key] = previousSettings?.[key];
-      restoredKeys.push(key);
-    } else if (!sameSettingValue(currentSettings?.[key], previousSettings?.[key])) {
-      concurrentKeys.push(key);
+  for (const key of MERGED_SETTINGS_FIELDS) {
+    const baseValue = baseSettings[key];
+    const proposedValue = proposedSettings[key];
+    if (sameSettingValue(baseValue, proposedValue)) continue;
+
+    const currentValue = currentSettings[key];
+    if (sameSettingValue(currentValue, baseValue) || sameSettingValue(currentValue, proposedValue)) {
+      merged[key] = proposedValue;
+    } else {
+      conflicts.push(key);
     }
   }
 
-  return { settings: reconciled, restoredKeys, concurrentKeys };
+  const baseRules = ruleMap(baseSettings);
+  const proposedRules = ruleMap(proposedSettings);
+  const currentRules = ruleMap(currentSettings);
+  const hosts = new Set([...baseRules.keys(), ...proposedRules.keys()]);
+
+  for (const host of hosts) {
+    const baseRule = baseRules.get(host) ?? null;
+    const proposedRule = proposedRules.get(host) ?? null;
+    if (sameRule(baseRule, proposedRule)) continue;
+
+    const currentRule = currentRules.get(host) ?? null;
+    if (sameRule(currentRule, baseRule)) {
+      if (proposedRule) currentRules.set(host, proposedRule);
+      else currentRules.delete(host);
+    } else if (!sameRule(currentRule, proposedRule)) {
+      conflicts.push(`rule:${host}`);
+    }
+  }
+
+  const whitelist = [];
+  const blacklist = [];
+  for (const [host, rule] of currentRules) {
+    const entry = { host, includeSubdomains: rule.includeSubdomains };
+    if (rule.ruleType === "blacklist") blacklist.push(entry);
+    else whitelist.push(entry);
+  }
+  if (whitelist.length > MAX_RULE_ENTRIES || blacklist.length > MAX_RULE_ENTRIES) {
+    throw new Error(`规则合并后超过单类 ${MAX_RULE_ENTRIES} 条的安全上限；本次修改未保存。`);
+  }
+  merged.whitelist = normalizeWhitelist(whitelist);
+  merged.blacklist = normalizeBlacklist(blacklist);
+
+  return { settings: merged, conflicts };
 }
 
 export function normalizeHostname(value) {

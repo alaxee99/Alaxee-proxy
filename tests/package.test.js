@@ -298,15 +298,21 @@ test("clear-all requires explicit confirmation and does nothing for an empty lis
   assert.ok(clearAction.includes("${entries.length} 条规则"));
 });
 
-test("failed proxy apply uses a latest-snapshot field-aware rollback", async () => {
-  const script = await readFile(path.join(root, "src/popup.js"), "utf8");
-  assert.ok(script.includes("reconcileSettingsAfterApplyFailure({"));
-  assert.ok(script.includes('chrome.storage.local, "get", "settings"'));
-  assert.ok(script.includes("currentSettings: latestSettings"));
-  assert.ok(script.includes("attemptedSettings: next"));
-  assert.ok(script.includes("rollback.concurrentKeys.length"));
-  assert.ok(script.includes('host: "代理地址"'));
-  assert.ok(script.includes('whitelist: "直连白名单"'));
-  assert.ok(script.includes("chrome.storage.local has no atomic compare-and-swap"));
-  assert.doesNotMatch(script, /await saveSettings\(previousSettings\)/);
+
+test("popup settings writes and proxy applies are routed through the serialized service worker queue", async () => {
+  const popup = await readFile(path.join(root, "src/popup.js"), "utf8");
+  const worker = await readFile(path.join(root, "background.js"), "utf8");
+  const core = await readFile(path.join(root, "src/core.js"), "utf8");
+  assert.ok(popup.includes('type: applyProxy ? "ALAXEE_PROXY_SETTINGS_APPLY" : "ALAXEE_PROXY_SETTINGS_SAVE"'));
+  assert.ok(popup.includes("baseSettings,"));
+  assert.ok(popup.includes("proposedSettings: next"));
+  assert.doesNotMatch(popup, /chrome\.storage\.local, "set", \{ settings:/);
+  assert.doesNotMatch(popup, /chrome\.proxy\.settings, "set"/);
+  assert.ok(worker.includes("let proxySettingsMutationQueue = Promise.resolve()"));
+  assert.ok(worker.includes("function serializeProxySettingsMutation(operation)"));
+  assert.ok(worker.includes("mergeConcurrentSettings({"));
+  assert.ok(worker.includes('message?.type === "ALAXEE_PROXY_SETTINGS_SAVE"'));
+  assert.ok(worker.includes('message?.type === "ALAXEE_PROXY_SETTINGS_APPLY"'));
+  assert.ok(worker.includes('chrome.proxy.settings, "set"'));
+  assert.ok(core.includes("export function mergeConcurrentSettings("));
 });
