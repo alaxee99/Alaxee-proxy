@@ -161,6 +161,7 @@ test("proxy panel distinguishes browser configuration from local Clash health an
   assert.ok(script.includes('controlled_by_other_extensions: "其他扩展控制"'));
   assert.ok(script.includes("Clash 路由已应用"));
   assert.ok(script.includes("Edge 代理设置由 Alaxee Proxy 控制"));
+  assert.ok(script.includes("!['not_controllable', 'controlled_by_other_extensions'].includes(level)"));
   const applyMode = script.slice(script.indexOf("async function applyMode("), script.indexOf("async function addDomainRule("));
   assert.ok(applyMode.indexOf("await saveSettings(next)") < applyMode.indexOf('chrome.proxy.settings, "set"'));
   assert.ok(applyMode.includes("await saveSettings(previousSettings)"));

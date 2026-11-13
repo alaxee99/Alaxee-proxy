@@ -606,7 +606,8 @@ async function readProxyState({ announceControlChange = true } = {}) {
         (level === "not_controllable" || level === "controlled_by_other_extensions")) {
       sendNotice("Edge 代理设置的控制权已发生变化：" + stateLabel + "。", "warning");
     }
-    if (label === "其他代理配置" || label === "自动检测代理" || label === "其他 PAC 代理配置") {
+    if (!['not_controllable', 'controlled_by_other_extensions'].includes(level) &&
+        (label === "其他代理配置" || label === "自动检测代理" || label === "其他 PAC 代理配置")) {
       ui.statePill.className = "state-pill state-warn";
     }
     return { level, current };
